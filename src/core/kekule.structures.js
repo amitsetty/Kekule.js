@@ -4650,7 +4650,9 @@ Kekule.StructureFragment = Class.create(Kekule.ChemStructureNode,
 				}
 				var [ charge2, electrons2 ] = this.getHydrogenNodeData(connectors2[index2]);
 				// if the hydrogens in both structures have the same charges and number of electrons, assume we have a match
-				if (charge1 === charge2 && electrons1 === electrons2) {
+				if (charge1 === charge2 && electrons1 === electrons2 &&
+					connectors1[index1].getBondForm().getBondOrder() ===
+					connectors2[index2].getBondForm().getBondOrder()) {
 						matchedConnector = true;
 						usedConnectors.push(index2);
 					break;
@@ -4693,7 +4695,9 @@ Kekule.StructureFragment = Class.create(Kekule.ChemStructureNode,
 				}
 				var [ charge2, electrons2 ] = this.getHydrogenNodeData(connectors1[index2]);
 				// if the hydrogens in both structures have the same charges and number of electrons, assume we have a match
-				if (charge1 === charge2 && electrons1 === electrons2) {
+				if (charge1 === charge2 && electrons1 === electrons2 &&
+					connectors1[index2].getBondForm().getBondOrder() ===
+					connectors2[index1].getBondForm().getBondOrder()) {
 					matchedConnector = true;
 					usedConnectors.push(index2);
 					break;
