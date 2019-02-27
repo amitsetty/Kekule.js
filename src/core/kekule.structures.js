@@ -1156,9 +1156,9 @@ Kekule.AbstractAtom = Class.create(Kekule.ChemStructureNode,
         {
             if (this._getComparisonOptionFlagValue(options, 'hydrogenCount'))
             {
-				var c1 = this.getHydrogenCount(true, options);
-				var c2 = targetObj.getHydrogenCount && targetObj.getHydrogenCount(true, options);
-				result = this.doCompareOnValue(c1, c2, options);
+				var c1 = this.getHydrogenCount(true);
+				var c2 = targetObj.getHydrogenCount && targetObj.getHydrogenCount(true);
+				result = this.doCompareOnValue(c1, c2);
             }
         }
 		if (!result && options.method === Kekule.ComparisonMethod.CHEM_STRUCTURE)
