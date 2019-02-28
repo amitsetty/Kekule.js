@@ -814,6 +814,12 @@ module.exports = function(Kekule) {
 			return result;
 		},
 
+		/** @ignore */
+		getAbsCoordOfMode: function(coordMode, allowCoordBorrow)
+		{
+			return this.getAbsBaseCoord(coordMode, allowCoordBorrow);
+		},
+
 		/**
 		 * Returns only connected objects exposed to renderer.
 		 * @returns {Array}
@@ -872,6 +878,25 @@ module.exports = function(Kekule) {
 			return this.getLength(Kekule.CoordMode.COORD3D, allowCoordBorrow);
 		}
 	});
+
+	ClassEx.defineProps(Kekule.BaseStructureConnector, [
+		{
+			'name': 'absCoord2D',
+			'dataType': DataType.HASH,
+			'serializable': false,
+			'getter': function(allowCoordBorrow) {
+				return this.getAbsBaseCoord(Kekule.CoordMode.COORD2D, allowCoordBorrow);
+			}
+		},
+		{
+			'name': 'absCoord3D',
+			'dataType': DataType.HASH,
+			'serializable': false,
+			'getter': function(allowCoordBorrow) {
+				return this.getAbsBaseCoord(Kekule.CoordMode.COORD3D, allowCoordBorrow);
+			}
+		}
+	]);
 
 	ClassEx.extend(Kekule.ChemStructureConnector,
 	/** @lends Kekule.ChemStructureConnector# */
