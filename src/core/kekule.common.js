@@ -1483,10 +1483,11 @@ Kekule.ClassDefineUtils = {
 						//return Object.extend({}, c);
 						return {'x': c.x, 'y': c.y};
 				},
-				'setter': function(value){
+				'setter': function(value, allowCoordBorrow){
 					var c = value;
-					if (this.getParent && this.getParent() && this.getParent().getAbsCoord2D) // has parent, consider parent coordinate to get absolute position
-						c = Kekule.CoordUtils.substract(value, this.getParent().getAbsCoord2D());
+					var p = this.getCoordParent(Kekule.CoordMode.COORD2D);
+					if (p && p.getAbsCoord2D) // has parent, consider parent coordinate to get absolute position
+						c = Kekule.CoordUtils.substract(value, p.getAbsCoord2D(allowCoordBorrow));
 					this.setCoord2D(c);
 				}
 			});
@@ -1507,10 +1508,11 @@ Kekule.ClassDefineUtils = {
 						//return Object.extend({}, c);
 						return {'x': c.x, 'y': c.y, 'z': c.z};
 				},
-				'setter': function(value){
+				'setter': function(value, allowCoordBorrow){
 					var c = value;
-					if (this.getParent && this.getParent()) // has parent, consider parent coordinate to get absolute position
-						c = Kekule.CoordUtils.substract(value, this.getParent().getAbsCoord3D());
+					var p = this.getCoordParent(Kekule.CoordMode.COORD2D);
+					if (p && p.getAbsCoord3D) // has parent, consider parent coordinate to get absolute position
+						c = Kekule.CoordUtils.substract(value, p.getAbsCoord3D(allowCoordBorrow));
 					this.setCoord3D(c);
 				}
 			});
