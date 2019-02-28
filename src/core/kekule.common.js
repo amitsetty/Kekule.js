@@ -1078,6 +1078,15 @@ Kekule.ClassDefineUtils = {
 	/** @lends Kekule.ClassDefineUtils.CommonCoordMethods# */
 	{
 		/**
+		 * Returns the parent object that influences the abs coord of this object.
+		 * @param {Int} coordMode
+		 * @returns {Kekule.ChemObject}
+		 */
+		getCoordParent: function(coordMode)
+		{
+			return (this.getParent && this.getParent()) || null;
+		},
+		/**
 		 * Get coordinate of specified mode.
 		 * @param {Int} coordMode Value from {@link Kekule.CoordMode}, mode of coordinate.
 		 * @param {Bool} allowCoordBorrow If corresponding coord of 2D/3D not found, whether
@@ -1462,7 +1471,8 @@ Kekule.ClassDefineUtils = {
 				'serializable': false,
 				'getter': function(allowCoordBorrow){
 					var c = this.getCoord2D(allowCoordBorrow) || {};
-					var p = this.getParent? this.getParent(): null;
+					//var p = this.getParent? this.getParent(): null;
+					var p = this.getCoordParent(Kekule.CoordMode.COORD2D);
 					var result;
 					//if (p && p.hasCoord2D && p.hasCoord2D())  // has parent, consider parent coordinate to get absolute position
 					if (p && p.getAbsCoord2D)
@@ -1488,7 +1498,8 @@ Kekule.ClassDefineUtils = {
 				'serializable': false,
 				'getter': function(allowCoordBorrow){
 					var c = this.getCoord3D(allowCoordBorrow) || {};
-					var p = this.getParent? this.getParent(): null;
+					//var p = this.getParent? this.getParent(): null;
+					var p = this.getCoordParent(Kekule.CoordMode.COORD3D);
 					//if (p && p.hasCoord3D && p.hasCoord3D())  // has parent, consider parent coordinate to get absolute position
 					if (p && p.getAbsCoord3D)
 						return Kekule.CoordUtils.add(c, p.getAbsCoord3D(allowCoordBorrow) || {});
