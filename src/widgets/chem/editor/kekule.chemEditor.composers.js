@@ -2324,7 +2324,7 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 	 * @returns {Kekule.Widget.ButtonGroup}
 	 * @private
 	 */
-	createInnerToolbar: function(parentElem)
+	createInnerToolbar: function(parentElem, asFirstChildren)
 	{
 		var toolBar = new Kekule.Widget.ButtonGroup(this);
 		toolBar.addClassName(CCNS.COMPOSER_TOOLBAR);
@@ -2332,7 +2332,17 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 		toolBar.addClassName(CNS.DYN_CREATED);
 		toolBar.setShowText(false);
 		toolBar.doSetShowGlyph(true);
-		toolBar.appendToElem(parentElem || this.getElement());
+		var pElem = parentElem || this.getElement();
+		if (asFirstChildren)
+		{
+			var refElem = Kekule.DomUtils.getFirstChildElem(pElem);
+			if (refElem)
+				toolBar.insertToElem(pElem, refElem);
+			else
+				toolBar.appendToElem(pElem);
+		}
+		else
+			toolBar.appendToElem(pElem);
 		return toolBar;
 	},
 	/**
@@ -2427,7 +2437,7 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 	createChemToolbar: function()
 	{
 		var parentElem = this.getLeftRegionElem();
-		var toolbar = this.createInnerToolbar(parentElem);
+		var toolbar = this.createInnerToolbar(parentElem, true);  // chem toolbar should be the first child on the left region
 		toolbar.addClassName(CCNS.COMPOSER_CHEM_TOOLBAR);
 		toolbar.setLayout(Kekule.Widget.Layout.VERTICAL);
 		// add buttons
