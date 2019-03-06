@@ -291,6 +291,16 @@ Kekule.ChemStructureObject = Class.create(Kekule.ChemObject,
 		return 'o';
 	},
 
+	/**
+	 * Returns whether another node can stick to this object.
+	 * Descendants may override this method.
+	 * @returns {Bool}
+	 */
+	getAcceptCoordStick: function()
+	{
+		return false;
+	},
+
 	/** @ignore */
 	doGetActualCompareOptions: function($super, options)
 	{
@@ -940,6 +950,11 @@ Kekule.BaseStructureNode = Class.create(Kekule.SimpleStructureNode,
 						Kekule.chemError(Kekule.$L('ErrorMsg.UNABLE_TO_STICK_TO_OTHER_OWNER_OBJ'));
 						return;
 					}
+					if (!value.getAcceptCoordStick && !value.getAcceptCoordStick())
+					{
+						Kekule.chemError(Kekule.$L('ErrorMsg.INVALID_STICK_TARGET_OBJ'));
+						return;
+					}
 					if (!value.getAbsCoordOfMode)
 					{
 						Kekule.chemError(Kekule.$L('ErrorMsg.UNABLE_TO_STICK_TO_OBJ_WITHOUT_ABS_COORD'));
@@ -1147,6 +1162,12 @@ Kekule.ChemStructureNode = Class.create(Kekule.BaseStructureNode,
 	getLabel: function()
 	{
 		return null;
+	},
+
+	/** @private */
+	getAcceptCoordStick: function()
+	{
+		return true;
 	},
 
 	/** @ignore */
@@ -7558,6 +7579,12 @@ Kekule.ChemStructureConnector = Class.create(Kekule.BaseStructureConnector,
 				return result;
 			}
 		});
+	},
+
+	/** @private */
+	getAcceptCoordStick: function()
+	{
+		return true;
 	},
 
 	/** @ignore */
