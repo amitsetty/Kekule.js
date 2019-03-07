@@ -133,6 +133,11 @@ Kekule.Glyph.PathGlyphConnectorControlNode = Class.create(Kekule.BaseStructureNo
 	{
 		return 'cn';
 	},
+	/** @ignore */
+	getAcceptCoordStick: function()
+	{
+		return false;  // ensure other node can not stick to this control node
+	},
 	/** @private */
 	getParentConnector: function()
 	{

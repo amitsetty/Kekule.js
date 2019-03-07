@@ -326,6 +326,8 @@ ClassEx.extend(/*Kekule.ChemStructureNode*/Kekule.BaseStructureNode,
 	 */
 	getCoordDependentObjects: function($super)
 	{
+		return $super();
+		/*
 		if (this.getCoordStickTarget())  // has coord stick target
 		{
 			var result = $super() || [];
@@ -334,6 +336,7 @@ ClassEx.extend(/*Kekule.ChemStructureNode*/Kekule.BaseStructureNode,
 		}
 		else
 			return $super();
+		*/
 	},
 	/**
 	 * Move node by delta.
