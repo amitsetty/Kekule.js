@@ -906,7 +906,6 @@ Kekule.ChemStructOperation.RemoveConnector = Class.create(Kekule.ChemObjOperatio
  * @property {Kekule.ChemStructureNode} target Source node, all connectors to this node will be connected to toNode.
  * @property {Kekule.ChemStructureNode} dest Destination node.
  * @property {Bool} enableStructFragmentMerge If true, molecule will be also merged when merging nodes between different molecule.
- * @property {Bool} mergeConnectorPropsFromTarget If connectors are merged in this operation, whether copy some properties of target connector to dest.
  */
 Kekule.ChemStructOperation.MergeNodesBase = Class.create(Kekule.ChemObjOperation.Base,
 /** @lends Kekule.ChemStructOperation.MergeNodesBase# */
@@ -927,7 +926,6 @@ Kekule.ChemStructOperation.MergeNodesBase = Class.create(Kekule.ChemObjOperation
 	{
 		this.defineProp('dest', {'dataType': 'Kekule.ChemStructureNode', 'serializable': false});
 		this.defineProp('enableStructFragmentMerge', {'dataType': DataType.BOOL});
-		this.defineProp('mergeConnectorPropsFromTarget', {'dataType': DataType.BOOL});
 	},
 	/**
 	 * Returns nodes connected with both node1 and node2.
@@ -962,7 +960,7 @@ Kekule.ChemStructOperation.MergeNodesBase = Class.create(Kekule.ChemObjOperation
  * @param {Kekule.ChemStructureNode} dest Destination node.
  * @param {Bool} enableStructFragmentMerge If true, molecule will be also merged when merging nodes between different molecule.
  *
- * @property {Array} relinkedConnectors Connectors changing conntected objects during merge.
+ * @property {Array} changedConnectors Connectors modified during merge.
  * @property {Array} removedConnectors Connectors removed during merge.
  */
 Kekule.ChemStructOperation.MergeNodes = Class.create(Kekule.ChemStructOperation.MergeNodesBase,
@@ -984,7 +982,7 @@ Kekule.ChemStructOperation.MergeNodes = Class.create(Kekule.ChemStructOperation.
 	/** @private */
 	initProperties: function()
 	{
-		this.defineProp('relinkedConnectors', {'dataType': DataType.ARRAY, 'serializable': false});
+		this.defineProp('changedConnectors', {'dataType': DataType.ARRAY, 'serializable': false});
 		this.defineProp('removedConnectors', {'dataType': DataType.ARRAY, 'serializable': false});
 		this.defineProp('changedGlyphNodes', {'dataType': DataType.HASH})
 		//this.defineProp('enableStructFragmentMerge', {'dataType': DataType.BOOL});
@@ -1015,8 +1013,6 @@ Kekule.ChemStructOperation.MergeNodes = Class.create(Kekule.ChemStructOperation.
 	/** @ignore */
 	doExecute: function()
 	{
-		var mergeConnectorProps = this.getMergeConnectorPropsFromTarget();
-		var connModifyOpers = this._modifyConnecorOperations || [];
 		var fromNode = this.getTarget();
 		var toNode = this.getDest();
 		// console.log('calling MergeNodes on', fromNode.CLASS_NAME, fromNode.id, 'to', toNode.CLASS_NAME, toNode.id);
@@ -1050,11 +1046,9 @@ Kekule.ChemStructOperation.MergeNodes = Class.create(Kekule.ChemStructOperation.
 				}
 			})
 			var removedConnectors = this.getRemovedConnectors();
-			var commonSiblings;
 			if (!removedConnectors && !(fromNode instanceof Kekule.ChemMarker.UnbondedElectronSet))  // auto calc
 			{
-				connModifyOpers = [];  // need calculate later
-				commonSiblings = this.getCommonSiblings(fromNode, toNode);
+				var commonSiblings = this.getCommonSiblings(fromNode, toNode);
 				var removedConnectors = [];
 				// TODO: Figure out if the removedConnectors have attached glyphNodes and push those nodes into changedGlyphNodes
 				if (commonSiblings.length)  // has common sibling between from/toNode, bypass bond between fromNode and sibling
@@ -1063,10 +1057,8 @@ Kekule.ChemStructOperation.MergeNodes = Class.create(Kekule.ChemStructOperation.
 					{
 						var sibling = commonSiblings[i];
 						var connector = fromNode.getConnectorTo(sibling);
-						if (connector && (connector.getConnectedObjCount() == 2))  // connector in target struct need to be removed
-						{
+						if (connector && (connector.getConnectedObjCount() == 2))
 							removedConnectors.push(connector);
-						}
 					}
 				}
 				var directConnector = fromNode.getConnectorTo(toNode);
@@ -1075,13 +1067,13 @@ Kekule.ChemStructOperation.MergeNodes = Class.create(Kekule.ChemStructOperation.
 				this.setRemovedConnectors(removedConnectors);
 			}
 
-			var connectors = this.getRelinkedConnectors();
+			var connectors = this.getChangedConnectors();
 			if (!connectors && !(fromNode instanceof Kekule.ChemMarker.UnbondedElectronSet))  // auto calc
 			{
 				var linkedConnectors = fromNode.getLinkedConnectors();
 				var connectors = Kekule.ArrayUtils.clone(linkedConnectors) || [];
 				connectors = Kekule.ArrayUtils.exclude(connectors, removedConnectors);
-				this.setRelinkedConnectors(connectors);
+				this.setChangedConnectors(connectors);
 			}
 
 			// save fromNode's information
@@ -1097,29 +1089,29 @@ Kekule.ChemStructOperation.MergeNodes = Class.create(Kekule.ChemStructOperation.
 				}
 			}
 
-			// some properties of removed connector may need to be copied to dest connector
-			if (mergeConnectorProps && !connModifyOpers.length && removedConnectors && removedConnectors.length)
-			{
-				if (!commonSiblings)
-					commonSiblings = this.getCommonSiblings(fromNode, toNode);
-				for (var i = 0, l = commonSiblings.length; i < l; ++i)
-				{
-					var sibling = commonSiblings[i];
-					var targetConnector = fromNode.getConnectorTo(sibling);
-					if (removedConnectors.indexOf(targetConnector) >= 0)
-					{
-						var destConnector = toNode.getConnectorTo(sibling);
-						if (destConnector)
-						{
-							var copyConnPropsOper = this.getMergeConnPropsOperation(targetConnector, destConnector);
-							if (copyConnPropsOper)
-							{
-								connModifyOpers.push(copyConnPropsOper);
-							}
-						}
-					}
-				}
-			}
+			// // some properties of removed connector may need to be copied to dest connector
+			// if (mergeConnectorProps && !connModifyOpers.length && removedConnectors && removedConnectors.length)
+			// {
+			// 	if (!commonSiblings)
+			// 		commonSiblings = this.getCommonSiblings(fromNode, toNode);
+			// 	for (var i = 0, l = commonSiblings.length; i < l; ++i)
+			// 	{
+			// 		var sibling = commonSiblings[i];
+			// 		var targetConnector = fromNode.getConnectorTo(sibling);
+			// 		if (removedConnectors.indexOf(targetConnector) >= 0)
+			// 		{
+			// 			var destConnector = toNode.getConnectorTo(sibling);
+			// 			if (destConnector)
+			// 			{
+			// 				var copyConnPropsOper = this.getMergeConnPropsOperation(targetConnector, destConnector);
+			// 				if (copyConnPropsOper)
+			// 				{
+			// 					connModifyOpers.push(copyConnPropsOper);
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// }
 
 			this._removeConnectorOperations = [];
 			if (removedConnectors) {
@@ -1136,17 +1128,17 @@ Kekule.ChemStructOperation.MergeNodes = Class.create(Kekule.ChemStructOperation.
 			this._removeNodeOperation = new Kekule.ChemStructOperation.RemoveNode(fromNode, null, null, editor);
 			this._removeNodeOperation.execute();
 
-			if (connModifyOpers)
-			{
-				this._modifyConnecorOperations = connModifyOpers;
-				for (var i = 0, l = connModifyOpers.length; i < l; ++i)
-				{
-					connModifyOpers[i].execute();
-					var oper = new Kekule.ChemStructOperation.RemoveConnector(connector, null, null, editor);
-					oper.execute();
-					this._removeConnectorOperations.push(oper);
-				}
-			}
+			// if (connModifyOpers)
+			// {
+			// 	this._modifyConnecorOperations = connModifyOpers;
+			// 	for (var i = 0, l = connModifyOpers.length; i < l; ++i)
+			// 	{
+			// 		connModifyOpers[i].execute();
+			// 		var oper = new Kekule.ChemStructOperation.RemoveConnector(connector, null, null, editor);
+			// 		oper.execute();
+			// 		this._removeConnectorOperations.push(oper);
+			// 	}
+			// }
 
 		this._removeNodeOperation = new Kekule.ChemStructOperation.RemoveNode(fromNode, null, null, editor);
 		this._removeNodeOperation.execute();
@@ -1169,16 +1161,6 @@ Kekule.ChemStructOperation.MergeNodes = Class.create(Kekule.ChemStructOperation.
 		structFragment.beginUpdate();
 		try
 		{
-			var connModifyOpers = this._modifyConnecorOperations;
-			if (connModifyOpers)
-			{
-				for (var i = 0, l = connModifyOpers.length; i < l; ++i)
-				{
-					connModifyOpers[i].reverse();
-				}
-				//this._modifyConnecorOperations = [];
-			}
-
 			/*
 			 console.log(fromNode.getParent(), fromNode.getParent() === structFragment,
 			 toNode.getParent(), toNode.getParent() === structFragment);
@@ -1196,7 +1178,7 @@ Kekule.ChemStructOperation.MergeNodes = Class.create(Kekule.ChemStructOperation.
 			}
 			this._removeConnectorOperations = [];
 
-			var connectors = this.getRelinkedConnectors();
+			var connectors = this.getChangedConnectors();
 
 			//console.log('reverse node merge2', toNode, toNode.getParent());
 
