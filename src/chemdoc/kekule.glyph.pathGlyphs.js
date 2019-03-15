@@ -452,8 +452,7 @@ Kekule.Glyph.PathGlyphArcConnectorControlNode = Class.create(Kekule.Glyph.PathGl
 	{
 		var CU = Kekule.CoordUtils;
 		// coord 2D is determinated by distance to chord
-		// adding just enough chaos into the calculation to prevent curves from collapsing
-		var d = this.getDistanceToChord() + 0.0000000000001;
+		var d = this.getDistanceToChord();
 		if (Kekule.ObjUtils.notUnset(d))
 		{
 			var connector = this.getParentConnector();
@@ -465,6 +464,12 @@ Kekule.Glyph.PathGlyphArcConnectorControlNode = Class.create(Kekule.Glyph.PathGl
 				{
 					//var midCoord = CU.divide(CU.add(arcStartCoord, arcEndCoord), 2);
 					var chordVector = CU.substract(arcEndCoord, arcStartCoord);
+					// adding just enough chaos into the calculation to prevent curves from collapsing
+					if (chordVector.x === chordVector.y)
+					{
+							chordVector.x = chordVector.x - 0.0000000000001;
+							chordVector.y = chordVector.y + 0.0000000000001;
+ 					}
 					var signX = Math.sign(chordVector.x);
 					var signY = Math.sign(chordVector.y);
 					if (Kekule.NumUtils.isFloatEqual(chordVector.x, 0, 1e-10))  // vertical line
