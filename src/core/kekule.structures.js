@@ -5058,15 +5058,34 @@ Kekule.StructureFragment = Class.create(Kekule.ChemStructureNode,
 						var hydrogen_display_type = this._getComparisonOptionFlagValue(options, 'hydrogen_display_type') || 'BONDED';
 						if (result === 0)
 						{
-							this.hydrateExplicitHydrogenBonds();
-							targetObj.hydrateExplicitHydrogenBonds();
+							var skeletal_mode = this._getComparisonOptionFlagValue(options, 'skeletalMode') || false;
+							var compareStereo = this._getComparisonOptionFlagValue(options, 'compareStereo');
 
-                            if (hydrogen_display_type !== 'BONDED') {
-                                Kekule.globalOptions.algorithm.molStandardization.clearHydrogens = true;
+							// // Debug
+							// var dump1 = Kekule.IO.saveFormatData(this, 'Kekule-JSON');
+							// var dump2 = Kekule.IO.saveFormatData(targetObj, 'Kekule-JSON');
+
+							this.hydrateExplicitHydrogenBonds(hydrogen_display_type, skeletal_mode);
+							targetObj.hydrateExplicitHydrogenBonds(hydrogen_display_type, skeletal_mode);
+
+							// dump1 = Kekule.IO.saveFormatData(this, 'Kekule-JSON');
+							// dump2 = Kekule.IO.saveFormatData(targetObj, 'Kekule-JSON');
+
+							if (hydrogen_display_type !== 'BONDED') {
+                                if (compareStereo)  {
+									Kekule.globalOptions.algorithm.molStandardization.clearHydrogens = true;
+								} else {
+									Kekule.globalOptions.algorithm.molStandardization.clearHydrogens = false;
+								}
                             	Kekule.MolStandardizer.standardize(this, options);
                                 Kekule.MolStandardizer.standardize(targetObj, options);
-                                Kekule.globalOptions.algorithm.molStandardization.clearHydrogens = false;
+								if (compareStereo)  {
+									Kekule.globalOptions.algorithm.molStandardization.clearHydrogens = false;
+								}
                             }
+
+							// dump1 = Kekule.IO.saveFormatData(this, 'Kekule-JSON');
+							// dump2 = Kekule.IO.saveFormatData(targetObj, 'Kekule-JSON');
 
 							var nodes1 = this.getNonHydrogenNodes();
 							var nodes2 = targetObj.getNonHydrogenNodes();
@@ -5165,7 +5184,7 @@ Kekule.StructureFragment = Class.create(Kekule.ChemStructureNode,
 		return result;
 	},
 
-	hydrateExplicitHydrogenBonds: function()
+	hydrateExplicitHydrogenBonds: function(hydrogen_display_type, skeletal_mode)
 	{
 		var nodes = this.getNodes();
 		var resultNodes = [];
@@ -5187,12 +5206,17 @@ Kekule.StructureFragment = Class.create(Kekule.ChemStructureNode,
 				}
 				return 'normal';
 			});
-			var explicitCount = node.getExplicitHydrogenCount();
+			// normalize hydrogens for comparison
+			var explicitHydrogens = hydrogen_display_type === 'EXPLICIT' && node.getExplicitHydrogenCount() ? node.getExplicitHydrogenCount() : 0;
+			var implicitHydrogens = hydrogen_display_type === 'IMPLICIT' || (skeletal_mode && hydrogen_display_type === 'EXPLICIT' && node.getIsotopeId() === "C") ? node.getImplicitHydrogenCount() : 0;
+
+			var explicitCount = explicitHydrogens + implicitHydrogens;
 			if (explicitCount) {
 				for(var i = 0; i < explicitCount; i++) {
 					var hydrogen = new Kekule.Atom();
 					hydrogen.setIsotopeId('H');
 					var bond = new Kekule.Bond();
+					bond.setBondForm(Kekule.BondFormFactory.getBondForm(1, 0, 'covalent'));
 					var counts = {};
 					for (var j = 0; j < existingStereoBonds.length; j++) {
 						if (existingStereoBonds[j] !== 'normal') {
