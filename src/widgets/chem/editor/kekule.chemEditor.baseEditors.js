@@ -5874,6 +5874,8 @@ Kekule.Editor.BasicManipulationIaController = Class.create(Kekule.Editor.BaseEdi
 		var scaleX = transformParams.scaleX || transformParams.scale;
 		var scaleY = transformParams.scaleY || transformParams.scale;
 
+		var isMovingOneStickNode = this._isManipulatingSingleStickedObj(manipulatingObjs);
+
 		for (var i = 0, l = manipulatingObjs.length; i < l; ++i)
 		{
 			var obj = manipulatingObjs[i];
@@ -5882,8 +5884,13 @@ Kekule.Editor.BasicManipulationIaController = Class.create(Kekule.Editor.BaseEdi
 			if (!info.hasNoCoord)  // this object has coord property and can be rotated
 			{
 				var oldCoord = info.screenCoord;
-				var newCoord = C.transform2DByMatrix(oldCoord, transformMatrix);
-				newInfo.screenCoord = newCoord;
+				if (!info.stickTarget || isMovingOneStickNode)
+				{
+					var newCoord = C.transform2DByMatrix(oldCoord, transformMatrix);
+					newInfo.screenCoord = newCoord;
+				}
+				else
+					newInfo.screenCoord = oldCoord;
 				//this._addManipultingObjNewInfo(obj, {'screenCoord': newCoord});
 			}
 			// TODO: may need change dimension also
@@ -5896,6 +5903,27 @@ Kekule.Editor.BasicManipulationIaController = Class.create(Kekule.Editor.BaseEdi
 		}
 
 		return true;
+	},
+
+	/**
+	 * Whether an object is sticking to another one.
+	 * @private
+	 */
+	_isStickedObj: function(obj)
+	{
+		return obj && obj.getCoordStickTarget && obj.getCoordStickTarget();
+	},
+	/** @private */
+	_isManipulatingSingleStickedObj: function(manipulatingObjs)
+	{
+		var result = false;
+		if (manipulatingObjs.length === 1)
+		{
+			var oneObj = manipulatingObjs[0];
+			var info = this.getManipulateObjInfoMap().get(oneObj);
+			result = !!info.stickTarget;
+		}
+		return result;
 	},
 
 	/*
@@ -5980,11 +6008,16 @@ Kekule.Editor.BasicManipulationIaController = Class.create(Kekule.Editor.BaseEdi
 	{
 		var C = Kekule.CoordUtils;
 		var newInfoMap = this.getManipulateObjCurrInfoMap();
+
+		var isMovingOneStickNode = this._isManipulatingSingleStickedObj(manipulatingObjs);
+
 		for (var i = 0, l = manipulatingObjs.length; i < l; ++i)
 		{
 			var obj = manipulatingObjs[i];
 			var info = this.getManipulateObjInfoMap().get(obj);
 			if (info.hasNoCoord)  // this object has no coord property and can not be moved
+				continue;
+			if (info.stickTarget && !isMovingOneStickNode)
 				continue;
 			var newScreenCoord = C.add(endScreenCoord, info.screenCoordOffset);
 			newScreenCoord = this._calcActualMovedScreenCoord(obj, info, newScreenCoord);
@@ -6131,6 +6164,10 @@ Kekule.Editor.BasicManipulationIaController = Class.create(Kekule.Editor.BaseEdi
 		info.hasNoCoord = !info.objCoord;
 		if (!info.hasNoCoord && startScreenCoord)
 			info.screenCoordOffset = Kekule.CoordUtils.substract(info.screenCoord, startScreenCoord);
+		if (obj.getCoordStickTarget)  // wether is a sticking object
+		{
+			info.stickTarget = obj.getCoordStickTarget();
+		}
 		return info;
 	},
 
