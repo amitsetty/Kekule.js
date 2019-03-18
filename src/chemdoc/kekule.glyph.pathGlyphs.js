@@ -467,8 +467,9 @@ Kekule.Glyph.PathGlyphArcConnectorControlNode = Class.create(Kekule.Glyph.PathGl
 					// adding just enough chaos into the calculation to prevent curves from collapsing
 					if (chordVector.x === chordVector.y)
 					{
-							chordVector.x = chordVector.x - 0.0000000000001;
-							chordVector.y = chordVector.y + 0.0000000000001;
+							var collapseDelta = 0.0000000000001;
+							chordVector.x = chordVector.x - collapseDelta;
+							chordVector.y = chordVector.y + collapseDelta;
  					}
 					var signX = Math.sign(chordVector.x);
 					var signY = Math.sign(chordVector.y);
