@@ -603,7 +603,7 @@ Kekule.Editor.BaseEditor = Class.create(Kekule.ChemWidget.ChemObjDisplayer,
 			}
 		});
 		// private object to record all bound infos
-		this.defineProp('boundInfoRecorder', {'dataType': 'Kekule.Render.BoundInfoRecorder', 'serializable': false, 'setter': null});
+		//this.defineProp('boundInfoRecorder', {'dataType': 'Kekule.Render.BoundInfoRecorder', 'serializable': false, 'setter': null});
 
 		this.defineProp('zoomCenter', {'dataType': DataType.HASH});
 	},
@@ -1190,12 +1190,15 @@ Kekule.Editor.BaseEditor = Class.create(Kekule.ChemWidget.ChemObjDisplayer,
 		{
 			result.setCanModifyTargetObj(true);
 			this.installPainterEventHandlers(result);
+			/* Moved up to class ChemObjDisplayer
 			// create new bound info recorder
 			this.createNewBoundInfoRecorder(this.getPainter());
+			*/
 		}
 		return result;
 	},
 	/** @private */
+	/* Moved up to class ChemObjDisplayer
 	createNewBoundInfoRecorder: function(renderer)
 	{
 		var old = this.getPropStoreFieldValue('boundInfoRecorder');
@@ -1205,6 +1208,7 @@ Kekule.Editor.BaseEditor = Class.create(Kekule.ChemWidget.ChemObjDisplayer,
 		//recorder.setTargetContext(this.getObjContext());
 		this.setPropStoreFieldValue('boundInfoRecorder', recorder);
 	},
+	*/
 
 	/** @private */
 	getDrawContextParentElem: function()
@@ -4699,30 +4703,6 @@ Kekule.Editor.BaseEditorIaController = Class.create(Kekule.Widget.InteractionCon
 		}
 		return result;
 	},
-	/**
-	 * Notify the manipulation is done and objs are inserted into or modified in editor.
-	 * This method should be called by descendants at the end of their manipulation.
-	 * Objs will be automatically selected if autoSelectNewlyInsertedObjects option is true.
-	 * @param {Array} objs
-	 * @private
-	 */
-	doneInsertOrModifyBasicObjects: function(objs)
-	{
-		if (this.needAutoSelectNewlyInsertedObjects())
-		{
-			var filteredObjs = this._filterBasicObjectsInEditor(objs);
-			this.getEditor().select(filteredObjs);
-		}
-	},
-
-	/** @private */
-	needAutoSelectNewlyInsertedObjects: function()
-	{
-		var pointerType = this.getManipulationPointerType();
-		var ic = this.getEditorConfigs().getInteractionConfigs();
-		return (ic.getAutoSelectNewlyInsertedObjectsOnTouch() && pointerType === 'touch')
-			|| ic.getAutoSelectNewlyInsertedObjects();
-	},
 
 	/** @private */
 	react_pointerdown: function(e)
@@ -6590,6 +6570,31 @@ Kekule.Editor.BasicManipulationIaController = Class.create(Kekule.Editor.BaseEdi
 		buffer.coord = coord;
 		buffer.event = e;
 		*/
+	},
+
+	/**
+	 * Notify the manipulation is done and objs are inserted into or modified in editor.
+	 * This method should be called by descendants at the end of their manipulation.
+	 * Objs will be automatically selected if autoSelectNewlyInsertedObjects option is true.
+	 * @param {Array} objs
+	 * @private
+	 */
+	doneInsertOrModifyBasicObjects: function(objs)
+	{
+		if (this.needAutoSelectNewlyInsertedObjects())
+		{
+			var filteredObjs = this._filterBasicObjectsInEditor(objs);
+			this.getEditor().select(filteredObjs);
+		}
+	},
+
+	/** @private */
+	needAutoSelectNewlyInsertedObjects: function()
+	{
+		var pointerType = this.getManipulationPointerType();
+		var ic = this.getEditorConfigs().getInteractionConfigs();
+		return (ic.getAutoSelectNewlyInsertedObjectsOnTouch() && pointerType === 'touch')
+			|| ic.getAutoSelectNewlyInsertedObjects();
 	},
 
 	// event handle methods
