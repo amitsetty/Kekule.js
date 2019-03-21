@@ -101,7 +101,9 @@ Kekule.Render.ChemObjPainter = Class.create(ObjectEx,
 		// private property
 
 		// private object to record all bound infos
-		this.defineProp('boundInfoRecorder', {'dataType': 'Kekule.Render.BoundInfoRecorder', 'serializable': false});
+		this.defineProp('boundInfoRecorder', {'dataType': 'Kekule.Render.BoundInfoRecorder', 'serializable': false, 'setter': null,
+				'getter': function() { var r = this.getRenderer(); return r && r.getBoundInfoRecorder(); }
+		});
 	},
 
 	/** @private */
@@ -124,7 +126,7 @@ Kekule.Render.ChemObjPainter = Class.create(ObjectEx,
 		{
 			var r = new c(this.getChemObj(), this.getDrawBridge(), /*this.getRenderConfigs(),*/ this);
 			this.setPropStoreFieldValue('renderer', r);
-			r.setBoundInfoRecorder(this.getBoundInfoRecorder());
+			//r.setBoundInfoRecorder(this.getBoundInfoRecorder());
 			return r;
 		}
 		else  // can not find suitable renderer
