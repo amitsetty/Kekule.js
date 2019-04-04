@@ -229,7 +229,7 @@ Kekule.Widget.DragDrop = {
  * @ignore
  */
 Kekule.Widget.UiEvents = [
-	/*'blur', 'focus',*/ 'click', 'dblclick', 'mousedown',/*'mouseenter', 'mouseleave',*/ 'mousemove', 'mouseout', 'mouseover', 'mouseup', 'mousewheel',
+	/*'blur', 'focus',*/ 'click', 'dblclick', 'mousedown',/*'mouseenter', 'mouseleave',*/ 'mousemove', 'mouseout', 'mouseover', 'mouseup', //'mousewheel',
 	'keydown', 'keyup', 'keypress',
 	'touchstart', 'touchend', 'touchcancel', 'touchmove',
 	'pointerdown', 'pointermove', 'pointerout', 'pointerover', 'pointerup',
@@ -240,7 +240,7 @@ Kekule.Widget.UiEvents = [
  * @ignore
  */
 Kekule.Widget.UiLocalEvents = [
-	'blur', 'focus', 'mouseenter', 'mouseleave', 'pointerenter', 'pointerleave'
+	'blur', 'focus', 'mouseenter', 'mouseleave', 'mousewheel', 'pointerenter', 'pointerleave'
 ];
 
 /**
