@@ -475,6 +475,29 @@ Kekule.ChemObjOperation.Add = Class.create(Kekule.ChemObjOperation.Base,
 			parent.insertBefore(obj, sibling);
 			this.notifyAfterAddingByEditor(obj, parent, sibling);
 		}
+
+		const editor = this.getEditor();
+		const context = editor.getObjContext();
+		const electron_infos = editor.getBoundInfoRecorder().getAllRecordedInfoOfContext(context).filter((info) => {
+			return info.obj instanceof Kekule.ChemMarker.UnbondedElectronSet;
+		});
+		const src_info = electron_infos.find((info) => {
+			return info.obj === obj;
+		});
+		const sibling_electron_infos = src_info ? electron_infos.filter((info) => {
+			return info !== src_info && info.obj.getParent() === src_info.obj.getParent();
+		}) : [];
+
+		for (var i = 0, l = sibling_electron_infos.length; i < l; ++i) {
+			var bound = sibling_electron_infos[i].boundInfo;
+			if (bound) {
+				if (Kekule.Render.MetaShapeUtils.isCoordInside(src_info.boundInfo.coords[0], bound, context.zoom * 20)) {
+					var oper = new Kekule.ChemStructOperation.MergeNodes(src_info.obj, sibling_electron_infos[i].obj, true, this.getEditor());
+					oper.execute();
+					break;
+				}
+			}
+		}
 	},
 	/** @private */
 	doReverse: function()
