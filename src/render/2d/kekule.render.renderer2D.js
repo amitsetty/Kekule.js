@@ -2602,7 +2602,10 @@ Kekule.Render.ChemCtab2DRenderer = Class.create(Kekule.Render.Ctab2DRenderer,
 			 var renderOptions = Object.extend(renderConfigs, localOptions);
 			 */
 			// if a label is drawn, all hydrogens should be marked
-			var hdisplayLevel = this._getNodeHydrogenDisplayLevel(node, options);
+			//var hdisplayLevel = Kekule.Render.HydrogenDisplayLevel.ALL; //this._getNodeHydrogenDisplayLevel(node);
+			var hdisplayLevel = this._getNodeHydrogenDisplayLevel(node, nodeRenderOptions);
+			if (hdisplayLevel === Kekule.Render.HydrogenDisplayLevel.LABELED)  // when label is shown, always show hydrogens
+				hdisplayLevel = Kekule.Render.HydrogenDisplayLevel.ALL;
 			//console.log(hdisplayLevel);
 			var needShowChargeInLabel = !!(needDrawCharge || needDrawRadical);
 			//console.log(node.getCharge(), node.getRadical(), needDrawCharge, needDrawRadical, needShowChargeInLabel);
@@ -2765,21 +2768,17 @@ Kekule.Render.ChemCtab2DRenderer = Class.create(Kekule.Render.Ctab2DRenderer,
 	 */
 	_getNodeHydrogenDisplayLevel: function(node, drawOptions)
 	{
-		const { hydrogenDisplayType: HDT } = this.getDrawBridge()
-		const { IMPLICIT, EXPLICIT, NONE } = Kekule.Render.HydrogenDisplayLevel
-		const { SKELETAL } = Kekule.Render.MoleculeDisplayType
-		if (node.getIsotopeId() === "C" && drawOptions.moleculeDisplayType === SKELETAL) {
-			return EXPLICIT
-		}
-		switch (HDT) {
-			case 'BONDED':
-				return NONE
-			case 'IMPLICIT':
-				return IMPLICIT
-			case 'EXPLICIT':
-			default:
-				return EXPLICIT
-		}
+		//if (this.getMoleculeDisplayType() === Kekule.Render.MoleculeDisplayType.CONDENSED)  // condensed, need display all hydrogens defaultly
+		var localRenderOptions = node.getOverriddenRenderOptions();
+		var localLevel = Kekule.Render.RenderOptionUtils.getHydrogenDisplayLevel(localRenderOptions);
+		var hdisplayLevel = Kekule.ObjUtils.notUnset(localLevel)?
+			localLevel:
+			/*((drawOptions.moleculeDisplayType === Kekule.Render.MoleculeDisplayType.CONDENSED)?
+					Kekule.Render.HydrogenDisplayLevel.ALL:*
+					drawOptions.hydrogenDisplayLevel);*/
+			drawOptions.hydrogenDisplayLevel;
+					//this.getRenderConfigs().getMoleculeDisplayConfigs().getDefHydrogenDisplayLevel());
+		return hdisplayLevel;
 	},
 
 	/**
@@ -2865,13 +2864,14 @@ Kekule.Render.ChemCtab2DRenderer = Class.create(Kekule.Render.Ctab2DRenderer,
 
 					var hDisplayLevel = this._getNodeHydrogenDisplayLevel(node, drawOptions);
 					var HDL = Kekule.Render.HydrogenDisplayLevel;
-					if ((hDisplayLevel === HDL.ALL) || (hDisplayLevel === HDL.NONE))
+					if ((hDisplayLevel === HDL.ALL)/* || (hDisplayLevel === HDL.NONE)*/)
 					{
 						return true;
 					}
 					else if (hDisplayLevel === HDL.UNMATCHED_EXPLICIT)
 					{
-						return (node.getImplicitHydrogenCount() !== node.getExplicitHydrogenCount());
+						var explicitHCount = node.getExplicitHydrogenCount();
+						return (Kekule.ObjUtils.notUnset(explicitHCount) && node.getImplicitHydrogenCount() !== explicitHCount);
 					}
 					else  // explicit
 						return Kekule.ObjUtils.notUnset(node.getExplicitHydrogenCount());

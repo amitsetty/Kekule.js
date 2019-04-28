@@ -1064,8 +1064,7 @@ module.exports = function(Kekule) {
 		getDisplayRichText: function($super, hydrogenDisplayLevel, showCharge, displayLabelConfigs, partialChargeDecimalsLength, chargeMarkType, distinguishSingletAndTripletRadical)
 		{
 			var R = Kekule.Render;
-			// Check for number because `NONE` enumeration is 0
-			if (typeof hydrogenDisplayLevel !== 'number')
+			if (Kekule.ObjUtils.isUnset(hydrogenDisplayLevel))
 				hydrogenDisplayLevel = R.HydrogenDisplayLevel.DEFAULT;
 			/*
 			//var result = this.getCoreDisplayRichText() || R.RichTextUtils.create();
