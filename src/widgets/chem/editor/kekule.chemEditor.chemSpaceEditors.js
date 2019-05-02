@@ -2024,7 +2024,7 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 									if (obj !== magneticMergeObjs[0])
 									{
 										var info = currManipulateInfoMap.get(obj);
-										if (info.screenCoord)
+										if (info && info.screenCoord)
 										{
 											var newCoord = CU.add(info.screenCoord, coordTranslate);
 											info.screenCoord = newCoord;
