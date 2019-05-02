@@ -689,6 +689,12 @@ Kekule.Render.AbstractRenderer = Class.create(ObjectEx,
 		return (rType === Kekule.Render.RendererType.R3D)? Kekule.CoordMode.COORD3D: Kekule.CoordMode.COORD2D;
 	},
 
+	/** @private */
+	_getRenderSortIndex: function()
+	{
+		return 0;
+	},
+
 	/**
 	 * Returns draw params (center coord, options, matrix...) on last draw process on context.
 	 * @returns {Hash}
@@ -1724,6 +1730,21 @@ Kekule.Render.CompositeRenderer = Class.create(Kekule.Render.AbstractRenderer,
 		$super();
 	},
 
+	/** ignore */
+	_getRenderSortIndex: function($super)
+	{
+		var result = $super();
+		var renderers = this.prepareChildRenderers();
+		for (var i = 0, l = renderers.length; i < l; ++i)
+		{
+			var r = renderers[i];
+			var childIndex = r._getRenderSortIndex();
+			if (childIndex > result)
+				result = childIndex;
+		}
+		return result;
+	},
+
 	/** @ignore */
 	doEstimateObjBox: function($super, context, options, allowCoordBorrow)
 	{
@@ -1971,6 +1992,10 @@ Kekule.Render.CompositeRenderer = Class.create(Kekule.Render.AbstractRenderer,
 		var group = this.createDrawGroup(context);
 		var childRenderers = this.getChildRenderers();
 
+		// TODO: A temp solution for auto offset of coord stick glyphs
+		// sort child renderers, the child with coord sticking will draw after all other children
+		this._sortChildRenderers(childRenderers);
+
 		var ops = Object.create(options);
 
 		this.getRenderCache(context).childDrawOptions = ops;
@@ -1994,6 +2019,15 @@ Kekule.Render.CompositeRenderer = Class.create(Kekule.Render.AbstractRenderer,
 		}
 		//console.log('draw children', this.getClassName(), group, childRenderers.length, this.getTargetChildObjs());
 		return group;
+	},
+	/** @private */
+	_sortChildRenderers: function(renderers)
+	{
+		renderers.sort(function(r1, r2){
+			var index1 = r1._getRenderSortIndex();
+			var index2 = r2._getRenderSortIndex();
+			return index1 - index2;
+		});
 	},
 	/** @private */
 	doClear: function($super, context)
