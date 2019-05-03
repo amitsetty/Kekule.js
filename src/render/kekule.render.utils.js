@@ -2379,9 +2379,10 @@ Kekule.Render.MetaShapeUtils = {
 	 * Returns the cross point of a vector line to shape edges.
 	 * @param {Array} vectorCoords
 	 * @param {Object} shapeInfo
+	 * @param {Bool} shortcut If true, returns directly when finding cross point and bypassing all rest vectors.
 	 * @returns {Array}
 	 */
-	getCrossPointsOfVectorToShapeEdges: function(vectorCoords, shapeInfo)
+	getCrossPointsOfVectorToShapeEdges: function(vectorCoords, shapeInfo, shortcut)
 	{
 		var edgeVectors = Kekule.Render.MetaShapeUtils.getEdgeVectors(shapeInfo);
 		var result = [];
@@ -2390,7 +2391,11 @@ Kekule.Render.MetaShapeUtils = {
 			var edge = edgeVectors[i];
 			var crossPoint = Kekule.GeometryUtils.getCrossPointOfVectors(vectorCoords, edge);
 			if (crossPoint)
+			{
 				result.push(crossPoint);
+				if (shortcut)
+					break;
+			}
 		}
 		return result;
 	}
