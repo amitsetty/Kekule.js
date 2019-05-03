@@ -3375,6 +3375,47 @@ Kekule.ChemSpace = Class.create(Kekule.ChemObject,
 	{
 		this.notifyPropSet('ownedObjs', this.getPropStoreFieldValue('ownedObjs'));
 	},
+	/** @private */
+	_notifyOwnedObjsSpaceUpdate: function(obj, owner, operation)
+	{
+		for (var i = 0, l = this.getOwnedObjCount(); i < l; ++i)
+		{
+			var child = this.getOwnedObjAt(i);
+			if (child && child.objSpaceOfOwnerUpdated)
+				child.objSpaceOfOwnerUpdated(obj, owner, operation);
+		}
+
+		// update related objects of removed one
+		if (this._enableObjRefRelations && this._autoUpdateObjRefRelations && operation === Kekule.ObjectTreeOperation.REMOVE)
+		{
+			var AU = Kekule.ArrayUtils;
+			var relations = this.findObjRefRelations({'dest': obj}) || [];
+			for (var i = 0, l = relations.length; i < l; ++i)
+			{
+				var rel = relations[i];
+				if (rel.srcProp.autoUpdate)  // an auto-update relation, update it
+				{
+					var relDest = rel.dest;
+					var newDest = (AU.isArray(relDest))? AU.exclude(relDest, [obj]): null;
+					// set value
+					rel.srcObj.setPropValue(rel.srcProp.name, newDest);
+					//console.log('auto set ref value', rel.srcObj.getId() + '.' + rel.srcProp.name, newDest);
+				}
+			}
+		}
+	},
+	/** @private */
+	notifyOwnerLoaded: function()
+	{
+		// when the whole chem space is loaded from external data, notify all owned objects.
+		var ownedObjs = this.getOwnedObjs() || [];
+		for (var i = 0, l = ownedObjs.length; i < l; ++i)
+		{
+			var obj = ownedObjs[i];
+			if (obj && obj._ownerObjectLoaded)
+				obj._ownerObjectLoaded(this);
+		}
+	},
 
 	/* @ignore */
 	/*
