@@ -761,7 +761,8 @@ Kekule.ChemStructOperation.RemoveNode = Class.create(Kekule.ChemObjOperation.Rem
 	/** @private */
 	initProperties: function()
 	{
-		this.defineProp('linkedConnectors', {'dataType': DataType.ARRAY, 'serializable': false});
+		//this.defineProp('linkedConnectors', {'dataType': DataType.ARRAY, 'serializable': false});
+		this.defineProp('linkedConnectorInfos', {'dataType': DataType.ARRAY, 'serializable': false});
 	},
 	/** @private */
 	doExecute: function($super)
@@ -780,11 +781,28 @@ Kekule.ChemStructOperation.RemoveNode = Class.create(Kekule.ChemObjOperation.Rem
 			}
 			$super();
 		}
+		
+		if (!this.getLinkedConnectorInfos())
+		{
+			var node = this.getTarget();
+			var linkedConnectors = node.getLinkedConnectors();
+			var info = [];
+			for (var i = 0, l = linkedConnectors.length; i < l; ++i)
+			{
+				var connector = linkedConnectors[i];
+				var nodeIndex = connector.indexOfConnectedObj(node);
+				var refSibling = connector.getConnectedObjAt(nodeIndex + 1) || null;
+				info.push({'connector': connector, 'refSibling': refSibling});
+			}
+			this.setLinkedConnectorInfos(info);
+		}
+		$super()
 	},
 	/** @private */
 	doReverse: function($super)
 	{
 		$super();
+		/*
 		var linkedConnectors = this.getLinkedConnectors();
 
 		//console.log('reverse node', this.getTarget().getId());
@@ -797,6 +815,19 @@ Kekule.ChemStructOperation.RemoveNode = Class.create(Kekule.ChemObjOperation.Rem
 			{
 				//linkedConnectors[i].appendConnectedObj(target);
 				target.appendLinkedConnector(linkedConnectors[i]);
+			}
+		}
+		*/
+		var linkedConnectorInfos = this.getLinkedConnectorInfos();
+		if (linkedConnectorInfos)
+		{
+			var node = this.getTarget();
+			for (var i = 0, l = linkedConnectorInfos.length; i < l; ++i)
+			{
+				var connector = linkedConnectorInfos[i].connector;
+				var refSibling = linkedConnectorInfos[i].refSibling;
+				//node._doAppendLinkedConnector(connector);
+				connector.insertConnectedObjBefore(node, refSibling);
 			}
 		}
 	}
