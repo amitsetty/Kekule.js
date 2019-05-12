@@ -55,7 +55,12 @@ Kekule.Glyph.StraightLine = Class.create(Kekule.Glyph.PathGlyph,
 	/** @private */
 	_applyParamsToConnector: function(connector, initialParams)
 	{
-		connector.setPathParams(initialParams);
+		//connector.setPathParams(initialParams);
+
+		var p = Object.create(initialParams);
+		if (Kekule.ObjUtils.isUnset(initialParams.autoOffset))
+			p.autoOffset = true;
+		connector.setPathParams(p);
 	},
 
 	/** @ignore */
