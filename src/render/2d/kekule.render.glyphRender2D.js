@@ -447,7 +447,7 @@ Kekule.Render.PathGlyphCtab2DRenderer = Class.create(Kekule.Render.Ctab2DRendere
 			var offsetBound = offsetBounds[i];
 			if (offsetBound)
 			{
-				if (offsetBound.shapeType === Kekule.Render.BoundShapeType.RECT)
+				//if (offsetBound.shapeType === Kekule.Render.BoundShapeType.RECT)
 				{
 					var crossAnglesAndCoords = this._getCrossCoordsAndAnglesOfArcToShapeEdges(centerCoord, radius, startAngle, endAngle, controllerAngle, offsetBound);
 					if (crossAnglesAndCoords && crossAnglesAndCoords.length === 1)  // we should draw arc to this angle rather than the original one
@@ -539,7 +539,8 @@ Kekule.Render.PathGlyphCtab2DRenderer = Class.create(Kekule.Render.Ctab2DRendere
 	/** @private */
 	_getCrossCoordsAndAnglesOfArcToShapeEdges: function(arcCenter, arcRadius, arcStartAngle, arcEndAngle, arcControllerAngle, shapeInfo)
 	{
-		var edgeVectors = Kekule.Render.MetaShapeUtils.getEdgeVectors(shapeInfo);
+		var edgeElements = Kekule.Render.MetaShapeUtils.getEdgeBasicElements(shapeInfo);
+		var edgeVectors = edgeElements.vectors;
 		var candidates = [];
 		for (var i = 0, l = edgeVectors.length; i < l; ++i)
 		{
@@ -550,6 +551,17 @@ Kekule.Render.PathGlyphCtab2DRenderer = Class.create(Kekule.Render.Ctab2DRendere
 				candidates = candidates.concat(crossPoints);
 			}
 		}
+		var edgeCircles = edgeElements.circles;
+		for (var i = 0, l = edgeCircles.length; i < l; ++i)
+		{
+			var edge = edgeCircles[i];
+			var crossPoints = Kekule.GeometryUtils.getCrossPointsOfCircles(edge.center, edge.radius, arcCenter, arcRadius, 1e-4);  // TODO: currently threshold fixed, a rather large value for screen coord sys
+			if (crossPoints && crossPoints.length)
+			{
+				candidates = candidates.concat(crossPoints);
+			}
+		}
+		//console.log(edgeElements, candidates);
 
 		var result = [];
 		var sign = Math.sign((arcControllerAngle - arcStartAngle) * (arcControllerAngle - arcEndAngle));
