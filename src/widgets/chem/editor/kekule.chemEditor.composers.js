@@ -1191,6 +1191,8 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 			'setter': function(value)
 			{
 				this.setPropStoreFieldValue('enableStyleToolbar', value);
+				if (value)  // enable style bar should disable modifier bar
+					this.setPropStoreFieldValue('enableObjModifierToolbar', false);
 				this.updateSelectionAssocToolbarState();
 			}
 		});
@@ -1215,6 +1217,8 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 			'setter': function(value)
 			{
 				this.setPropStoreFieldValue('enableObjModifierToolbar', value);
+				if (value)  // enable modifier bar should disable style bar
+					this.setPropStoreFieldValue('enableStyleToolbar', false);
 				this.updateSelectionAssocToolbarState();
 			}
 		});
@@ -2907,7 +2911,10 @@ Kekule.Editor.Composer.Settings = Class.create(Kekule.Widget.BaseWidget.Settings
 	initProperties: function()
 	{
 		//this.defineProp('composer', {'dataType': 'Kekule.Editor.Composer', 'serializable': false, 'scope': PS.PUBLIC});
-		this.defineDelegatedProps(['enableCreateNewDoc', 'enableLoadNewFile', 'initOnNewDoc', 'enableOperHistory', 'allowCreateNewChild', 'allowAppendDataToCurr', 'enableStyleToolbar']);
+		this.defineDelegatedProps([
+			'enableCreateNewDoc', 'enableLoadNewFile', 'initOnNewDoc', 'enableOperHistory', 'allowCreateNewChild', 'allowAppendDataToCurr',
+			'enableStyleToolbar', 'enableObjModifierToolbar'
+		]);
 	}
 });
 
