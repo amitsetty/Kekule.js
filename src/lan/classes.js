@@ -2329,6 +2329,20 @@ ObjectEx = Class.create(
 		else
 			return null;
 	},
+	/**
+	 * Change the class of an existing object.
+	 * This method is quite dangerous, call it with caution.
+	 * @param {Class} aClass
+	 */
+	__changeClass__: function(aClass)
+	{
+		var proto = ClassEx.getPrototype(aClass);
+		this.prototype = proto;
+		this.__proto__ = proto;
+		this.constructor = aClass;
+		this.objectChange(['__proto__']);  // notify object changed
+		return this;
+	},
 	/*
 	getPropList: function()
 	{
