@@ -2088,8 +2088,11 @@ Kekule.ChemObject = Class.create(ObjectEx,
 						oldOwner._removeOwnedObj(this);
 					this.setPropStoreFieldValue('owner', value);
 					if (value)
+					{
 						value._appendOwnedObj(this);
-					this.ownerChanged(value);
+						this.invokeEvent('addToSpace', {'obj': this, 'owner': oldOwner});
+					}
+					this.ownerChanged(value, oldOwner);
 				}
 		});
 		this.defineProp('srcInfo', {'dataType': DataType.OBJECT,
@@ -2209,7 +2212,7 @@ Kekule.ChemObject = Class.create(ObjectEx,
 	 * Called after a new owner property is set. Descendants can override this method.
 	 * @private
 	 */
-	ownerChanged: function(newOwner)
+	ownerChanged: function(newOwner, oldOwner)
 	{
 		// change scalar owners
 		for (var i = 0, l = this.getScalarAttribCount(); i < l; ++i)
@@ -2863,7 +2866,7 @@ Kekule.ChemObjList = Class.create(Kekule.ChemObject,
 
 	/* @private */
 	/*
-	ownerChanged: function($super, newOwner)
+	ownerChanged: function($super, newOwner, oldOwner)
 	{
 		this.changeAllItemsOwner();
 		$super(newOwner);
@@ -3205,7 +3208,7 @@ Kekule.ChemSpaceElement = Class.create(Kekule.ChemObject,
 	},
 
 	/** @ignore */
-	ownerChanged: function($super, newOwner)
+	ownerChanged: function($super, newOwner, oldOwner)
 	{
 		// change owners of children
 		this.getChildren().setOwner(newOwner);
