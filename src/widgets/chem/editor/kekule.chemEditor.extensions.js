@@ -699,12 +699,23 @@ ClassEx.extend(Kekule.Glyph.PathGlyph,
 	}
 });
 
-ClassEx.extend(Kekule.Glyph.Arc,
-	/** @lends Kekule.Glyph.Arc# */
+ClassEx.extend(Kekule.Glyph.BaseArc,
+/** @lends Kekule.Glyph.BaseArc# */
+{
+	/** @ignore */
+	ownerChanged: function($super, newOwner, oldOwner)
 	{
-		/** @private */
-		_getChemStickTargets: function()
+		var needAutoAdjustClass = (!oldOwner && newOwner);  // when first inserting to a space, may need to adjust class
+		var result = $super(newOwner);
+		if (needAutoAdjustClass && this.getIsEditing())
 		{
+			this._autoAdjustClass();
+		}
+		return result;
+	},
+	/** @private */
+	_getChemStickTargets: function()
+	{
 			var result = [];
 			for (var i = 0, l = this.getNodeCount(); i < l; ++i)
 			{
@@ -746,7 +757,7 @@ ClassEx.extend(Kekule.Glyph.Arc,
 		}
 	});
 
-	ClassEx.extendMethod(Kekule.Glyph.Arc, 'doCreateDefaultStructure', function($origin, refLength, initialParams)
+	ClassEx.extendMethod(Kekule.Glyph.BaseArc, 'createDefaultStructure', function($origin, refLength, initialParams)
 	{
 		var result = $origin(refLength, initialParams);
 		this._autoAdjustClass();
