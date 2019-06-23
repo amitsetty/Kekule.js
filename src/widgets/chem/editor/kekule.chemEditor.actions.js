@@ -109,6 +109,7 @@ Object.extend(Kekule.ChemWidget.ComponentWidgetNames, {
 	glyphElectronPushingArrow: 'repElectronPushingArrow',
 	glyphElectronPushingArrowDouble: 'repElectronPushingArrowDouble',
 	glyphElectronPushingArrowSingle: 'repElectronPushingArrowSingle',
+	glyphRepSegment: 'repGlyphSegment',
 	glyphReactionArrowNormal: 'repGlyphReactionArrowNormal',
 	glyphReactionArrowReversible: 'glyphReactionArrowReversible',
 	glyphReactionArrowResonance: 'glyphReactionArrowResonance',
@@ -2326,7 +2327,7 @@ Kekule.Editor.ActionComposerSetRepositoryLineSegmentController = Kekule.Editor.c
 		}
 	},
 	null, null,
-	BNS.glyphReactionArrowNormal
+	BNS.glyphRepSegment
 );
 Kekule.Editor.ActionComposerSetRepositoryNormalReactionArrowController = Kekule.Editor.createComposerIaControllerActionClass(
 	'Kekule.Editor.ActionComposerSetRepositoryNormalReactionArrowController',
