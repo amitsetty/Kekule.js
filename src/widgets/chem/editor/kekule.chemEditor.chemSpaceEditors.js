@@ -702,10 +702,12 @@ Kekule.Editor.ChemSpaceEditor = Class.create(Kekule.Editor.BaseEditor,
 	 * @param {Array} objects
 	 * @param {Hash} screenCoordOffset If this value is set, new cloned objects will be moved based on this coord.
 	 * @param {Bool} addToSpace If true, the cloned objects will add to current space immediately.
+	 * @param {Bool} keepRelations If true, the object reference relations between objects will be kept in the cloned ones.
 	 * @returns {Array} Actually cloned objects.
 	 */
-	cloneObjects: function(objects, screenCoordOffset, addToSpace)
+	cloneObjects: function(objects, screenCoordOffset, addToSpace, keepRelations)
 	{
+		var self = this;
 		if (!this.getChemSpace())
 			return null;
 		/*
@@ -760,6 +762,110 @@ Kekule.Editor.ChemSpaceEditor = Class.create(Kekule.Editor.BaseEditor,
 			}
 		};
 
+		var _findParentObjOrSelf = function(targetObj, candidateObjs)
+		{
+			for (var i = 0, l = candidateObjs.length; i < l; ++i)
+			{
+				var candObj = candidateObjs[i];
+				if (targetObj === candObj || (targetObj.isChildOf && targetObj.isChildOf(candObj)))
+					return candObj;
+			}
+			return null;
+		};
+
+		var getRelatedObjRefRelations = function(standAloneObjs, owner)
+		{
+			var result = [];
+			if (!owner)
+				owner = self.getChemObj();  // the root chemspace
+			var relations = owner.getObjRefRelations && owner.getObjRefRelations();
+			if (relations)
+			{
+				// check each relation
+				for (var i = 0, l = relations.length; i < l; ++i)
+				{
+					var rel = relations[i];
+					var src = rel.srcObj;
+					var dests = AU.toArray(rel.dest);
+					var matchedSrc = _findParentObjOrSelf(src, standAloneObjs);
+					var matchedDests = [];
+					var matchAtLeastOneDest = false;
+					if (matchedSrc)
+					{
+						for (var j = 0, k = dests.length; j < k; ++j)
+						{
+							var dest = dests[j];
+							var matchedDest = _findParentObjOrSelf(dest, standAloneObjs);
+							if (matchedDest)
+								matchAtLeastOneDest = true;
+							matchedDests.push(matchedDest);
+						}
+
+						if (matchAtLeastOneDest)
+							result.push({'relation': rel, 'srcParent': matchedSrc, 'destParents': matchedDests});
+					}
+				}
+			}
+			return result;
+		};
+
+		var getNewObjRefRelation = function(relationMatch, oldObjs, clonedObjs)
+		{
+			var oldRelation = relationMatch.relation;
+			var oldSrcParent = relationMatch.srcParent;
+			var oldDestParents = relationMatch.destParents;
+			var indexStack, newSrcObj, newDestObjs = [];
+
+			// src
+			var srcIndex = oldObjs.indexOf(oldSrcParent);
+			var newSrcParent = clonedObjs[srcIndex];
+			if (oldRelation.srcObj === oldSrcParent)
+				newSrcObj = newSrcParent;
+			else
+			{
+				indexStack = oldSrcParent.indexStackOfChild && oldSrcParent.indexStackOfChild(oldRelation.srcObj);
+				if (indexStack)
+				{
+					newSrcObj = newSrcParent.getChildAtIndexStack && newSrcParent.getChildAtIndexStack(indexStack);
+				}
+			}
+			if (!newSrcObj)
+				return null;
+
+			// dest
+			var destIsArray = AU.isArray(oldRelation.dest);
+			var oldDests = destIsArray? oldRelation.dest: [oldRelation.dest];
+			for (var i = 0, l = oldDestParents.length; i <l; ++i)
+			{
+				var oldDestParent = oldDestParents[i];
+				var destIndex = oldObjs.indexOf(oldDestParent);
+				var newDestParent = clonedObjs[destIndex];
+				var newDestObj;
+				if (oldDestParent)  // parent has been cloned
+				{
+					if (oldDestParent === oldDests[i])
+						newDestObjs.push(newDestParent);
+					else if (oldDests[i])
+					{
+						indexStack = oldDestParent.indexStackOfChild && oldDestParent.indexStackOfChild(oldDests[i]);
+						if (indexStack)
+						{
+							newDestObj = newDestParent.getChildAtIndexStack && newDestParent.getChildAtIndexStack(indexStack);
+							if (newDestObj)
+								newDestObjs.push(newDestObj);
+						}
+					}
+				}
+			}
+			if (!newDestObjs.length)
+				return null;
+
+			var newDestValue = destIsArray? newDestObjs: newDestObjs[0];
+
+			var newRelation = {'srcObj': newSrcObj, 'srcProp': oldRelation.srcProp, 'dest': newDestValue};
+			return newRelation;
+		};
+
 		var targetObjs = Kekule.ArrayUtils.toArray(objects);
 		var standAloneObjs = [];
 		var childObjMap = new Kekule.MapEx();
@@ -780,12 +886,17 @@ Kekule.Editor.ChemSpaceEditor = Class.create(Kekule.Editor.BaseEditor,
 			}
 		}
 
+		// find related relations
+		var owner = this.getChemSpace();
+		var relationMatches = getRelatedObjRefRelations(standAloneObjs, owner);
+
 		// start clone
 		var space = this.getChemSpace();
 		var clonedObjs = [];
 		var coordMode = this.getCoordMode();
 		var allowCoordBorrow = this.getAllowCoordBorrow();
 		var standAloneObjCount = standAloneObjs.length;
+		/*
 		for (var i = 0; i < standAloneObjCount; ++i)
 		{
 			var obj = standAloneObjs[i];
@@ -793,14 +904,6 @@ Kekule.Editor.ChemSpaceEditor = Class.create(Kekule.Editor.BaseEditor,
 			// clear ids to avoid conflict
 			if (clonedObj.clearIds)
 				clonedObj.clearIds();
-			/*
-			if (coordOffset && clonedObj.getCoordOfMode && clonedObj.setCoordOfMode)
-			{
-				var coord = clonedObj.getCoordOfMode(coordMode, allowCoordBorrow);
-				var newCoord = Kekule.CoordUtils.add(coord, coordOffset);
-				clonedObj.setCoordOfMode(newCoord, coordMode);
-			}
-			*/
 
 			// remove unessential child objects of cloned object
 			removeUnessentialChildren(clonedObj, obj, childObjMap.get(obj));
@@ -817,8 +920,102 @@ Kekule.Editor.ChemSpaceEditor = Class.create(Kekule.Editor.BaseEditor,
 			}
 			clonedObjs.push(clonedObj);
 		}
+		*/
 
+		//var interSpace = new Kekule.IntermediateChemSpace();
+		//try
+		{
+			// clone objects first, and put them in a inter chemspace to build relations
+			for (var i = 0; i < standAloneObjCount; ++i)
+			{
+				var obj = standAloneObjs[i];
+				var clonedObj = obj.clone();
+				// clear ids to avoid conflict
+				if (clonedObj.clearIds)
+					clonedObj.clearIds();
+				clonedObjs.push(clonedObj);
+			}
+			//interSpace.appendChildren(clonedObjs);
+			// copy cloned object to a inter chem space, to build relations
+
+			// then map the new relations
+			var newRelations = [];
+			for (var i = 0, l = relationMatches.length; i < l; ++i)
+			{
+				var relationMatch = relationMatches[i];
+				var newRelation = getNewObjRefRelation(relationMatch, standAloneObjs, clonedObjs);
+				if (newRelation)
+				{
+					newRelations.push(newRelation);
+					/*
+					newRelation.srcObj.setPropValue(newRelation.srcProp.name, newRelation.dest);  // link objects
+					console.log('new relation', newRelation, newRelation.srcObj.getOwner(), newRelation.srcObj, newRelation.srcObj.getPropValue(newRelation.srcProp.name));
+					*/
+				}
+			}
+
+			// then remove unessential children
+			for (var i = 0; i < standAloneObjCount; ++i)
+			{
+				var obj = standAloneObjs[i];
+				var clonedObj = clonedObjs[i];
+
+				// remove unessential child objects of cloned object
+				removeUnessentialChildren(clonedObj, obj, childObjMap.get(obj));
+
+				if (addToSpace && allowAddToSpace)
+				{
+					space.appendChild(clonedObj);
+					if (screenCoordOffset)
+					{
+						var coord = this.getObjectScreenCoord(clonedObj);
+						var newCoord = Kekule.CoordUtils.add(coord, screenCoordOffset);
+						this.setObjectScreenCoord(clonedObj, newCoord);
+					}
+				}
+			}
+
+			// at last rebuild the relations
+			for (var i = 0, l = newRelations.length; i < l; ++i)
+			{
+				var newRelation = newRelations[i];
+				// check if new src/dest are not removed
+				var finalDest;
+				var hasNewSrcObj = _findParentObjOrSelf(newRelation.srcObj, clonedObjs);
+				if (hasNewSrcObj)
+				{
+					if (AU.isArray(newRelation.dest))
+					{
+						finalDest = [];
+						for (var j = 0, k = newRelation.dest.length; j < k; ++j)
+						{
+							var destObj = newRelation.dest[j];
+							if (_findParentObjOrSelf(destObj, clonedObjs))
+								finalDest.push(destObj);
+						}
+						if (!finalDest.length)
+							finalDest = null;
+					}
+					else
+					{
+						if (_findParentObjOrSelf(newRelation.dest, clonedObjs))
+							finalDest = newRelation.dest;
+					}
+
+					if (finalDest)  // now we can map the new relation
+					{
+						newRelation.srcObj.setPropValue(newRelation.srcProp.name, finalDest);  // link objects
+						//console.log('new relation', newRelation, newRelation.srcObj.getOwner(), newRelation.srcObj, newRelation.srcObj.getPropValue(newRelation.srcProp.name));
+					}
+				}
+			}
+		}
+		//finally
+		{
+			//interSpace.finalize();
+		}
 		childObjMap.finalize();
+
 		return clonedObjs;
 	},
 
@@ -827,15 +1024,35 @@ Kekule.Editor.ChemSpaceEditor = Class.create(Kekule.Editor.BaseEditor,
 	 * @param {Hash} coordOffset New cloned objects will be moved based on this coord.
 	 *   If this value is not set, a default one will be used.
 	 * @param {Bool} addToSpace If true, the objects cloned will be added to space immediately.
+	 * @param {Bool} allowCloneSpace If true, the chemspace itself can be cloned when being selected.
+	 *   Otherwise, the cloned targets are its children.
 	 * @returns {Array} Actually cloned objects.
 	 */
-	cloneSelection: function(coordOffset, addToSpace)
+	cloneSelection: function(coordOffset, addToSpace, allowCloneSpace)
 	{
+		var _getActualTargetObjs = function(objs, allowCloneSpace)
+		{
+			var result = [];
+			for (var i = 0, l = objs.length; i < l; ++i)
+			{
+				var obj = objs[i];
+				if ((obj instanceof Kekule.ChemSpace) && !allowCloneSpace)  // can not clone chemspace, use its children instead
+				{
+					var children = obj.getChildren();
+					AU.pushUnique(result, children);
+				}
+				else
+					AU.pushUnique(result, obj);
+			}
+			return result;
+		};
+
 		if (coordOffset === undefined)  // use default one
 		{
 			coordOffset = this.getDefaultCloneScreenCoordOffset();
 		}
 		var objs = this.getSelection();
+		objs = _getActualTargetObjs(objs, allowCloneSpace);
 		var clonedObjs = this.cloneObjects(objs, coordOffset, addToSpace);
 		if (addToSpace)
 			this.setSelection(clonedObjs);
@@ -1149,16 +1366,27 @@ Kekule.Editor.BasicMolEraserIaController = Class.create(Kekule.Editor.BasicErase
 	{
 		$super(widget);
 	},
-	/*
+	/**
 	 * @private
 	 */
 	doGetActualRemovedObjs: function(objs)
 	{
 		var result = [];
-		Kekule.ArrayUtils.pushUnique(result, objs);
+		var editorRoot = this.getEditor().getChemObj();
+		//Kekule.ArrayUtils.pushUnique(result, objs);
 		for (var i = 0, l = objs.length; i < l; ++i)
 		{
-			var delObjs = objs[i].getCascadeDeleteObjs? objs[i].getCascadeDeleteObjs(): [];
+			var delObjs;
+			var obj = objs[i];
+			if ((obj instanceof Kekule.ChemSpace) && (obj === editorRoot))  // can not remove root chem space in editor, use its children instead
+			{
+				delObjs = obj.getChildren();
+			}
+			else
+			{
+				Kekule.ArrayUtils.pushUnique(result, obj);
+				delObjs = obj.getCascadeDeleteObjs ? obj.getCascadeDeleteObjs() : [];
+			}
 			//Kekule.Editor.StructureUtils.getCascadeDeleteObjs(objs[i]);
 			if (delObjs)
 				Kekule.ArrayUtils.pushUnique(result, delObjs);
@@ -1293,7 +1521,7 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 
 		this.defineProp('enableDirectedMove', {'dataType': DataType.BOOL, 'serializable': false});
 
-		//this.defineProp('stickOperations', {'dataType': DataType.ARRAY, 'serializable': false});  // store operations of sticking
+		this.defineProp('stickOperations', {'dataType': DataType.ARRAY, 'serializable': false});  // store operations of sticking
 		this.defineProp('mergeOperations', {'dataType': DataType.ARRAY, 'serializable': false});  // store operations of merging
 		this.defineProp('mergePreviewOperations', {'dataType': DataType.ARRAY, 'serializable': false});  // store preview operations of merging
 		this.defineProp('anchorPreviewOperations', {'dataType': DataType.ARRAY, 'serializable': false});  // store preview operations for anchoring
@@ -1584,7 +1812,7 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 		this.setMergeOperations([]);
 		this.setMergePreviewOperations([]);
 		this.setAnchorPreviewOperations([]);
-		//this.setPrevMergeOperations([]);
+		this.setStickOperations([]);
 		$super(manipulationType, manipulatingObjs, startScreenCoord, startBox, rotateCenter, rotateRefCoord);
 		//this._mergeReversed = false;  // internal flag
 		this._directedMovingDirection = null;
@@ -1608,6 +1836,7 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 		this.setMergeOperations([]);
 		this.setMergePreviewOperations([]);
 		this.setAnchorPreviewOperations([]);
+		this.setStickOperations([]);
 	},
 
 	/** @ignore */
@@ -1646,9 +1875,10 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 					var previewOper = previewOpers[i];
 					if (previewOper)  // may be empty slot in operations
 					{
+						/*
 						if (previewOper instanceof Kekule.ChemObjOperation.StickTo)  // is stick operation
 							opers.push(previewOper);
-						else  // create concrete merge operation
+						else */  // create concrete merge operation
 						{
 							var mergeConnector = (previewOper instanceof Kekule.ChemStructOperation.MergeConnectorsBase);
 							/*
@@ -1804,28 +2034,6 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 	},
 
 	/** @private */
-	_getMagneticArrowNodeMergeDest: function(node, nodeScreenCoord, excludedObjs)
-	{
-		var editor = this.getEditor();
-		var self = this;
-		var filterFunc = function(bound)
-		{
-			var obj = bound.obj;
-			var result = (node !== obj) && (excludedObjs.indexOf(obj) < 0)
-					&& ((obj instanceof Kekule.ChemStructureNode) || (obj instanceof Kekule.ChemMarker.UnbondedElectronSet))
-					&& self._canMergeArrowNodes(node, obj);
-			return result;
-		};
-		if (nodeScreenCoord)
-		{
-			var boundInfos = editor.getBoundInfosAtCoord(nodeScreenCoord, filterFunc, this.getCurrBoundInflation());
-			var overlapBoundInfo = boundInfos.length? boundInfos[boundInfos.length - 1]: null;
-			return overlapBoundInfo? overlapBoundInfo.obj: null;
-		}
-		else
-			return null;
-	},
-
 	_getCoordStickActualTarget: function(obj)
 	{
 		var result = obj;
@@ -1847,8 +2055,8 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 			var obj = bound.obj;
 			var stickTargetObj = self._getCoordStickActualTarget(obj);
 			return (node !== obj) && (excludedObjs.indexOf(obj) < 0)
-					&& (((obj instanceof Kekule.BaseStructureNode || obj instanceof Kekule.ChemMarker.UnbondedElectronSet) && self._canMergeNodes(node, obj))
-					|| (self._canStickNode(node, stickTargetObj)));
+					&& ((obj instanceof Kekule.BaseStructureNode && self._canMergeNodes(node, obj))
+						|| (self._canStickNode(node, stickTargetObj)));
 		};
 		if (nodeScreenCoord)
 		{
@@ -1943,7 +2151,8 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 		var oldAnchorOpers = this.getAnchorOperationsInManipulating();
 		//console.log(this.getMergeOperationsInManipulating() === this.getMergeOperations());
 		//var oldMergeOpers = this.getMergeOperations();
-		
+		var oldStickOpers = this.getStickOperations();
+
 		//var allowMolMerge = this.getEnableStructFragmentMerge();
 		var self = this;
 
@@ -2031,25 +2240,49 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 				var needCreateNewMerge = (mergedObjCount <= 1); // false;
 				*/
 				var needCreateNewMerge = false;
+				var needCreateNewStick = false;
 				// check if need create new merge operation
-				if (!needCreateNewMerge)
 				{
 					var sameMergeOpers = [];
+					var sameStickOpers = [];
 					//console.log('oldMergeOpers', oldMergeOpers, magneticMergeObjIndexes);
 					for (var i = 0, l = magneticMergeObjs.length; i < l; ++i)
 					{
 						var obj = magneticMergeObjs[i];
 						var dest = magneticMergeDests[i];
 						var index = magneticMergeObjIndexes[i];
-						var oldMergeOper = oldMergeOpers[index];
-						if (!oldMergeOper || !this.isSameNodeMergeOrStick(oldMergeOper, obj, dest))
+						var magnectOperType = magneticMergeTypes[i];
+
+						if (magnectOperType === MagneticOperTypes.STICK)  // stick
 						{
-							//console.log('need new', oldMergeOper, obj.getId(), dest.getId(), index);
-							needCreateNewMerge = true;
-							break;
+							if (!needCreateNewStick)
+							{
+								var oldStickOper = oldStickOpers[index];
+								if (!oldStickOper || !this.isSameNodeStick(oldStickOper, obj, dest))
+								{
+									needCreateNewStick = true;
+									break;
+								}
+								else
+									sameStickOpers.push(oldStickOper);
+							}
 						}
-						else
-						sameMergeOpers.push(oldMergeOper);
+						else // merge
+						{
+							if (!needCreateNewMerge)
+							{
+								var oldMergeOper = oldMergeOpers[index];
+								if (!oldMergeOper || !this.isSameNodeMerge(oldMergeOper, obj, dest))
+								{
+									//console.log('need new', oldMergeOper, obj.getId(), dest.getId(), index);
+									needCreateNewMerge = true;
+								}
+								else
+									sameMergeOpers.push(oldMergeOper);
+							}
+						}
+						if (needCreateNewMerge && needCreateNewStick)
+							break;
 					}
 					for (var i = 0, l = oldMergeOpers.length; i < l; ++i)
 					{
@@ -2057,7 +2290,7 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 						if (oldMergeOper)
 						{
 							var index = sameMergeOpers.indexOf(oldMergeOper);
-							if (index < 0)   // old merge has more nodes than current, need to recreate new merge
+							if (index < 0)   // old merge has more operations than current, need to recreate new merge
 							{
 								needCreateNewMerge = true;
 								break;
@@ -2066,10 +2299,25 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 							sameMergeOpers.splice(index, 1);
 						}
 					}
+					for (var i = 0, l = oldStickOpers.length; i < l; ++i)
+					{
+						var oldStickOper = oldStickOpers[i];
+						if (oldStickOper)
+						{
+							var index = sameStickOpers.indexOf(oldStickOper);
+							if (index < 0)   // old sticks has more operations than current, need to recreate new merge
+							{
+								needCreateNewStick = true;
+								break;
+							}
+							else
+								sameStickOpers.splice(index, 1);
+						}
+					}
 				}
 				
 				//console.log('need new', needCreateNewMerge, mergeSingleObj);
-				if (needCreateNewMerge || mergeSingleObj)
+				if (needCreateNewMerge || needCreateNewStick || magneticSingleObj)
 				{
 					if (needCreateNewMerge)
 					{
@@ -2077,9 +2325,13 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 						//this.reverseMergeOpers();
 						this.reverseMergeOpers(this.getMergeOperationsInManipulating());
 					}
+					if (needCreateNewStick)
+					{
+						this.reverseStickOpers(this.getStickOperations());
+					}
 					// also need to adjust position of rest manipulatedObjs
 					var CU = Kekule.CoordUtils;
-					if ((mergedObjCount === 1) || (editor.getCoordMode() === Kekule.CoordMode.COORD3D))
+					if ((magneticObjCount === 1) || (editor.getCoordMode() === Kekule.CoordMode.COORD3D))
 					{
 						var mergeOrStickType = magneticMergeTypes[0];
 						if (mergeOrStickType !== MagneticOperTypes.MERGE_BOND)
@@ -2141,7 +2393,7 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 							}
 						}
 					}
-					else if ((mergedObjCount > 1) && (editor.getCoordMode() !== Kekule.CoordMode.COORD3D))  // 2 or more, first two one decide all others' position
+					else if ((magneticObjCount > 1) && (editor.getCoordMode() !== Kekule.CoordMode.COORD3D))  // 2 or more, first two one decide all others' position
 					{
 						var obj0 = magneticMergeObjs[0];
 						var obj1 = magneticMergeObjs[1];
@@ -2185,7 +2437,7 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 							for (var i = 0, l = manipulatedObjs.length; i < l; ++i)
 							{
 								var obj = manipulatedObjs[i];
-								if (magneticMergeObjs.indexOf(obj) < 0)
+								if (eligibleObjs.indexOf(obj) < 0)
 								{
 									var info = manipulateInfoMap.get(obj);
 									var currInfo = currManipulateInfoMap.get(obj);
@@ -2219,19 +2471,19 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 							}
 						}
 					}
-					
-					if (needCreateNewMerge)
+
+					if (needCreateNewMerge || needCreateNewStick)
 					{
 						var unstickedObjRecords = [];
 						// notify a new merge need to be done
-						this._mergeOperationsChanged(mergedObjCount, magneticMergeObjs, magneticMergeDests);
-						for (var i = 0, l = mergedObjCount; i < l; ++i)
+						this._mergeOperationsChanged(magneticObjCount, magneticMergeObjs, magneticMergeDests);
+						for (var i = 0, l = magneticObjCount; i < l; ++i)
 						{
 							var obj = magneticMergeObjs[i];
 							var dest = magneticMergeDests[i];
 							var index = magneticMergeObjIndexes[i];
 							var mergeType = magneticMergeTypes[i];
-							if (mergeType === MergeTypes.STICK)  // stick operation
+							if (mergeType === MagneticOperTypes.STICK)  // stick operation
 							{
 								var originManipulateInfo = manipulateInfoMap.get(obj);
 								var originStickTarget = originManipulateInfo.stickTarget;
@@ -2270,7 +2522,7 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 						}
 						//console.log('execute merge on', mergedObjCount);
 						//console.log('create new', magneticMergeObjIndexes, this.getMergeOperationsInManipulating());
-						
+
 						//this.executeMergeOpers();
 						if (needCreateNewMerge)
 							this.executeMergeOpers(this.getMergeOperationsInManipulating());
@@ -2290,11 +2542,10 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 				}
 				
 				//console.log('hot track on', magneticMergeDests.length, mergedObjCount, magneticMergeObjs.length);
-				editor.hotTrackOnObj(magneticMergeDests);
-				
-				return;
+				editor.hotTrackOnObj(eligibleDests);
 			}
 		}
+
 		var currManipulateInfoMap = this.getManipulateObjCurrInfoMap();
 		var manipulateInfoMap = this.getManipulateObjInfoMap();
 		var self = this;
@@ -2393,8 +2644,8 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 								var obj = manipulatedObjs[i];
 								if (obj !== eligibleObjs[0])
 								{
-									var info = currManipulateInfoMap.get(obj);
-									if (info.screenCoord)
+									//console.log('here', coordTranslate, currCoord, destCoord);
+									for (var i = 0, l = manipulatedObjs.length; i < l; ++i)
 									{
 										var newCoord = CU.add(info.screenCoord, coordTranslate);
 										info.screenCoord = newCoord;
@@ -2464,8 +2715,34 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 								var obj = manipulatedObjs[i];
 								if (eligibleObjs.indexOf(obj) < 0)
 								{
+									var info = manipulateInfoMap.get(obj);
 									var currInfo = currManipulateInfoMap.get(obj);
-									this.applySingleManipulatingObjInfo(i, obj, currInfo, endScreenCoord);
+									if (info.screenCoord)
+									{
+										var newCoord = CU.transform2DByMatrix(info.screenCoord, matrix);
+										currInfo.screenCoord = newCoord;
+										if (this._getMagneticNodeMergeOrStickDestInfo(obj, newCoord, excludedObjs))  // move position can do another magnetic merge
+											needReApply = true;
+									}
+									if (info.size)
+										currInfo.size = CU.multiply(info.size, transParam.scale);
+
+									//this.applySingleManipulatingObjInfo(i, obj, currInfo, endScreenCoord);
+								}
+							}
+
+							if (needReApply)
+								return this.applyManipulatingObjsInfo(endScreenCoord);
+							else
+							{
+								for (var i = 0, l = manipulatedObjs.length; i < l; ++i)
+								{
+									var obj = manipulatedObjs[i];
+									if (magneticMergeObjs.indexOf(obj) < 0)
+									{
+										var currInfo = currManipulateInfoMap.get(obj);
+										this.applySingleManipulatingObjInfo(i, obj, currInfo, endScreenCoord);
+									}
 								}
 							}
 						}
@@ -2508,14 +2785,14 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 				var targetClass = isMovingOneBond? Kekule.ChemStructureConnector: Kekule.ChemStructureNode;
 				var targetObj = isMovingOneBond? originManipulatedObjs[0]: manipulatedObjs[0];
 				var checkFunc = isMovingOneBond?
-				function(obj)
-				{
-					return self._canMergeConnectors(targetObj, obj);
-				}:
-				function(obj)
-				{
-					return self._canMergeNodes(targetObj, obj);
-				};
+					function(obj)
+					{
+						return self._canMergeConnectors(targetObj, obj);
+					}:
+					function(obj)
+					{
+						return self._canMergeNodes(targetObj, obj) || self._canStickNode(targetObj, obj);
+					};
 				var overlapBoundInfo = this._findSuitableMergeTargetBoundInfo(boundInfos, excludedObjs, targetClass, checkFunc);
 				console.log('merge', isMovingOneNode, boundInfos, overlapBoundInfo);
 				if (overlapBoundInfo)  // has bound info, do merge
@@ -2543,7 +2820,6 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 								//this.reverseMergeOpers();
 								this.reverseMergeOpers(this.getMergeOperationsInManipulating());
 							}
-							
 							if (useMergePreview)
 							{
 								var mergeOper = isMovingOneBond?
@@ -2768,7 +3044,6 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 			'magneticTypes': magneticTypes
 		};
 	},
-	
 	/**
 	 * Notify a set of new merge operations are created.
 	 * Descendants may override this method to reflect to those merges.
@@ -3102,11 +3377,10 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 	},
 
 	/** @private */
-	executeAnchorOpers: function(mergeOpers)
+	executeStickOpers: function(stickOpers)
 	{
 		var editor = this.getEditor();
-		var opers = Kekule.ArrayUtils.toUnique(mergeOpers || this.getAnchorOperationsInManipulating());
-		var anchorDests = [];
+		var opers = Kekule.ArrayUtils.toUnique(stickOpers || this.getStickOperations());
 		editor.beginUpdateObject();
 		try
 		{
@@ -3115,16 +3389,9 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 				if (opers[i])
 				{
 					opers[i].execute();
-					var dest = opers[i].getDest ? opers[i].getDest() : null;
-					if (dest)
-						AU.pushUnique(anchorDests, dest);
 				}
 			}
-			this.setAnchorDests(anchorDests.length ? anchorDests : null);
-
-			// console.log('[merge!!!!!]');
-			this.refreshManipulateObjs();
-			this._anchorJustReversed = false;
+			//this.refreshManipulateObjs();
 		}
 		finally
 		{
@@ -3132,11 +3399,10 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 		}
 	},
 	/** @private */
-	reverseAnchorOpers: function(anchorOperations)
+	reverseStickOpers: function(stickOpers)
 	{
 		var editor = this.getEditor();
-		this.setAnchorDests(null);
-		var originOpers = anchorOperations || this.getAnchorOperationsInManipulating();
+		var originOpers = stickOpers || this.getStickOperations();
 		var opers = Kekule.ArrayUtils.toUnique(originOpers);
 		if (!opers || !opers.length)
 			;  // do nothing
@@ -3149,14 +3415,11 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 				{
 					if (opers[i])
 					{
-						// console.log('reverse at', i, opers.length);
 						opers[i].reverse();
-						//delete opers[i];
 					}
 				}
 				originOpers.length = 0;
-				this._anchorJustReversed = true;   // a special flag
-				this.refreshManipulateObjs();
+				//this.refreshManipulateObjs();
 			}
 			finally
 			{
@@ -3220,8 +3483,6 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 						//delete opers[i];
 					}
 				}
-				//this._mergeReversed = true;
-				//this.setMergeOperations([]);
 				//console.log('reverse merge oper', opers);
 				//this.getMergeOperations().length = utilIndex;
 				originOpers.length = 0;
@@ -3235,6 +3496,7 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 			}
 		}
 	},
+
 	/** @private */
 	react_pointermove: function($super, e)
 	{

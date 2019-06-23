@@ -449,7 +449,24 @@ Kekule.PropertyEditor.GlyphPathNodeParamsEditor = Class.create(Kekule.PropertyEd
 		]
 	});
 
-Kekule.PropertyEditor.register(Kekule.PropertyEditor.GlyphPathParamsEditor, null, Kekule.Glyph.PathGlyphConnector, 'pathParams');
+/**
+ * A property editor that to edit pathNodeParams property of PathGlyphNode.
+ * @class
+ * @augments Kekule.PropertyEditor.ChemOptionObjectEditor
+ */
+Kekule.PropertyEditor.GlyphPathNodeParamsEditor = Class.create(Kekule.PropertyEditor.ChemOptionObjectEditor,
+	/** @lends Kekule.PropertyEditor.GlyphPathNodeParamsEditor# */
+	{
+		/** @private */
+		CLASS_NAME: 'Kekule.PropertyEditor.GlyphPathNodeParamsEditor',
+		/** @private */
+		CHILD_FIELD_INFOS: [
+			{'name': 'useStickingOffset', dataType: DataType.BOOL, 'targetClass': Kekule.Glyph.PathGlyphNode},
+			{'name': 'stickingOffsetRelLength', dataType: DataType.FLOAT, 'targetClass': Kekule.Glyph.PathGlyphNode}
+		]
+	});
+
+Kekule.PropertyEditor.register(Kekule.PropertyEditor.GlyphPathNodeParamsEditor, null, Kekule.Glyph.PathGlyphNode, 'pathNodeParams');
 
 return Kekule;
 };

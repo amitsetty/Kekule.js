@@ -5557,7 +5557,7 @@ Kekule.StructureFragment = Class.create(Kekule.ChemStructureNode,
 		$super(newOwner, oldOwner);
 	},
 	/** @private */
-	_removeChildObj: function(obj)
+	_removeChildObj: function($super, obj)
 	{
 		if (this.hasFormula())
 		{
@@ -5578,6 +5578,7 @@ Kekule.StructureFragment = Class.create(Kekule.ChemStructureNode,
 					ctab.removeChildObj(obj);
 			}
 		}
+		$super(obj);
 	},
 
 	/**
@@ -8221,7 +8222,7 @@ Kekule.ChemStructureObjectGroup = Class.create(Kekule.ChemStructureObject,
 	},
 
 	/** @private */
-	_removeChildObj: function(obj)
+	_removeChildObj: function($super, obj)
 	{
 		var index = this.indexOfObj(obj);
 		if (index < 0)
@@ -8230,6 +8231,7 @@ Kekule.ChemStructureObjectGroup = Class.create(Kekule.ChemStructureObject,
 		{
 			this.removeObjAt(index);
 		}
+		$super(obj);
 	},
 
 	/** @private */

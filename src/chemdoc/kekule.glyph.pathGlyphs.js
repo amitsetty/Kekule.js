@@ -799,7 +799,7 @@ Kekule.Glyph.PathGlyph = Class.create(Kekule.Glyph.Base,
 		$super(newOwner, oldOwner);
 	},
 	/** @private */
-	_removeChildObj: function(obj)
+	_removeChildObj: function($super, obj)
 	{
 		if (this.hasCtab())
 		{
@@ -812,6 +812,7 @@ Kekule.Glyph.PathGlyph = Class.create(Kekule.Glyph.Base,
 					ctab.removeChildObj(obj);
 			}
 		}
+		$super(obj);
 	},
 	/**
 	 * Returns if this fragment has no formula or ctab, or ctab has no nodes or connectors.
