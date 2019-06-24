@@ -1616,92 +1616,99 @@ Kekule.ChemWidget.ChargeSelectPanel = Class.create(Kekule.Widget.Panel,
  */
 /**
  * Invoked when the new arrow params has been set.
- *   event param of it has field: {value}
+ *   event param of it has field: {widget, value}
  * @name Kekule.ChemWidget.GlyphPathArrowSettingPanel#valueChange
  * @event
  */
+/**
+ * Invoked when the new arrow params are setting in the widget.
+ *   event param of it has field: {widget, value}
+ * @name Kekule.ChemWidget.GlyphPathArrowSettingPanel#valueInput
+ * @event
+ */
 Kekule.ChemWidget.GlyphPathArrowSettingPanel = Class.create(Kekule.Widget.Panel,
-	/** @lends Kekule.ChemWidget.GlyphPathArrowSettingPanel# */
+/** @lends Kekule.ChemWidget.GlyphPathArrowSettingPanel# */
+{
+	/** @private */
+	CLASS_NAME: 'Kekule.ChemWidget.GlyphPathArrowSettingPanel',
+	/** @private */
+	DATA_FIELD: '__$data$__',
+	/* @private */
+	//DATA_SIZE_RATIO: 10,
+	/** @construct */
+	initialize: function($super, parentOrElementOrDocument)
 	{
-		/** @private */
-		CLASS_NAME: 'Kekule.ChemWidget.GlyphPathArrowSettingPanel',
-		/** @private */
-		DATA_FIELD: '__$data$__',
-		/* @private */
-		//DATA_SIZE_RATIO: 10,
-		/** @construct */
-		initialize: function($super, parentOrElementOrDocument)
-		{
-			this._isSettingValue = false;
-			this._arrowWidthInputter = null;
-			this._arrowLengthInputter = null;
-			this._arrowStyleButtons = null;
-	
-			//this.setPropStoreFieldValue('value', {});
-			this.setPropStoreFieldValue('arrowWidthMin', 0);
-			this.setPropStoreFieldValue('arrowWidthMax', 0.5);
-			this.setPropStoreFieldValue('arrowWidthStep', 0.1);
-			this.setPropStoreFieldValue('arrowLengthMin', 0);
-			this.setPropStoreFieldValue('arrowLengthMax', 0.5);
-			this.setPropStoreFieldValue('arrowLengthStep', 0.1);
-			this.setPropStoreFieldValue('defaultValue', {
-				arrowType: Kekule.Glyph.ArrowType.NONE,
-				arrowSide: Kekule.Glyph.ArrowSide.BOTH
-			});
-	
-			$super(parentOrElementOrDocument);
-	
-			this.addEventListener('check', this.reactArrowStyleButtonCheck.bind(this));
-			this.addEventListener('valueChange', this.reactArrowSizeInputterChange.bind(this));
-		},
-		/** @private */
-		initProperties: function() {
-			this.defineProp('defaultValue', {'dataType': DataType.HASH, 'scope': Class.PropertyScope.PRIVATE});
-			this.defineProp('value', {
-				'dataType': DataType.HASH,
-				'getter': function()
+		this._isSettingValue = false;
+		this._arrowWidthInputter = null;
+		this._arrowLengthInputter = null;
+		this._arrowStyleButtons = null;
+
+		//this.setPropStoreFieldValue('value', {});
+		this.setPropStoreFieldValue('arrowWidthMin', 0);
+		this.setPropStoreFieldValue('arrowWidthMax', 0.5);
+		this.setPropStoreFieldValue('arrowWidthStep', 0.1);
+		this.setPropStoreFieldValue('arrowLengthMin', 0);
+		this.setPropStoreFieldValue('arrowLengthMax', 0.5);
+		this.setPropStoreFieldValue('arrowLengthStep', 0.1);
+		this.setPropStoreFieldValue('defaultValue', {
+			arrowType: Kekule.Glyph.ArrowType.NONE,
+			arrowSide: Kekule.Glyph.ArrowSide.BOTH
+		});
+
+		$super(parentOrElementOrDocument);
+
+		this.addEventListener('check', this.reactArrowStyleButtonCheck.bind(this));
+		this.addEventListener('valueChange', this.reactArrowSizeInputterChange.bind(this));
+		this.addEventListener('valueInput', this.reactArrowSizeInputterInput.bind(this));
+	},
+	/** @private */
+	initProperties: function() {
+		this.defineProp('defaultValue', {'dataType': DataType.HASH, 'scope': Class.PropertyScope.PRIVATE});
+		this.defineProp('value', {
+			'dataType': DataType.HASH,
+			'getter': function()
+			{
+				var result = this.getPropStoreFieldValue('value');
+				if (!result)
 				{
-					var result = this.getPropStoreFieldValue('value');
-					if (!result)
-					{
-						result = {};
-						this.setPropStoreFieldValue('value', result);
-					}
-					return result;
-				},
-				'setter': function(value)
+					result = {};
+					this.setPropStoreFieldValue('value', result);
+				}
+				return result;
+			},
+			'setter': function(value)
+			{
+				this._isSettingValue = true;
+				try
 				{
-					this._isSettingValue = true;
-					try
+					this.setPropStoreFieldValue('value', value);
+					var concreteValue = Object.extend(Object.extend({}, this.getDefaultValue()), value, !true, true);
+					// arrow style
+					for (var i = 0, l = this._arrowStyleButtons.length; i < l; ++i)
 					{
-						this.setPropStoreFieldValue('value', value);
-						var concreteValue = Object.extend(Object.extend({}, this.getDefaultValue()), value, !true, true);
-						// arrow style
-						for (var i = 0, l = this._arrowStyleButtons.length; i < l; ++i)
-						{
-							var btn = this._arrowStyleButtons[i];
-							var data = btn[this.DATA_FIELD];
-							if (data.arrowType === concreteValue.arrowType && (data.arrowSide === concreteValue.arrowSide) || (data.arrowType === Kekule.Glyph.ArrowType.NONE))
-								btn.setChecked(true);
-							else
-								btn.setChecked(false);
-						}
-						// arrow size
-						if (OU.notUnset(concreteValue.arrowWidth))
-						{
-							this._arrowWidthInputter.setValue(concreteValue.arrowWidth);
-						}
-						if (OU.notUnset(concreteValue.arrowLength))
-						{
-							this._arrowLengthInputter.setValue(concreteValue.arrowLength);
-						}
+						var btn = this._arrowStyleButtons[i];
+						var data = btn[this.DATA_FIELD];
+						if (data.arrowType === concreteValue.arrowType && (data.arrowSide === concreteValue.arrowSide) || (data.arrowType === Kekule.Glyph.ArrowType.NONE))
+							btn.setChecked(true);
+						else
+							btn.setChecked(false);
 					}
-					finally
+					// arrow size
+					if (OU.notUnset(concreteValue.arrowWidth))
 					{
-						this._isSettingValue = false;
+						this._arrowWidthInputter.setValue(concreteValue.arrowWidth);
+					}
+					if (OU.notUnset(concreteValue.arrowLength))
+					{
+						this._arrowLengthInputter.setValue(concreteValue.arrowLength);
 					}
 				}
-			});
+				finally
+				{
+					this._isSettingValue = false;
+				}
+			}
+		});
 			this.defineProp('allowedArrowTypes', {'dataType': DataType.ARRAY});
 			this.defineProp('allowedArrowSides', {'dataType': DataType.ARRAY});
 			this.defineProp('arrowWidthMin', {'dataType': DataType.NUMBER});
@@ -1914,6 +1921,27 @@ Kekule.ChemWidget.GlyphPathArrowSettingPanel = Class.create(Kekule.Widget.Panel,
 					else if (w === this._arrowLengthInputter)
 						v.arrowLength = size;
 					this.notifyValueChange(v);
+					e.stopPropagation();
+				}
+			}
+		},
+		/** @private */
+		reactArrowSizeInputterInput: function(e)
+		{
+			if (this._isSettingValue)  // input value by program, do not evoke event
+				return;
+			var w = e.widget;
+			if (w === this._arrowWidthInputter || w === this._arrowLengthInputter)
+			{
+				var size = w.getValue() && w.getValue();
+				if (OU.notUnset(size))
+				{
+					var v = this.getValue();
+					if (w === this._arrowWidthInputter)
+						v.arrowWidth = size;
+					else if (w === this._arrowLengthInputter)
+						v.arrowLength = size;
+					this.notifyValueInput(v);
 					e.stopPropagation();
 				}
 			}
@@ -2340,197 +2368,218 @@ Kekule.ChemWidget.GlyphPathArrowSettingPanel = Class.create(Kekule.Widget.Panel,
 		}
 	});
 	
-	/**
-	 * An panel to set the properties of a path glyph.
-	 * @class
-	 * @augments Kekule.Widget.Panel
-	 *
-	 * @property {Hash} value Path params, including fields {start/endArrowType, start/endArrowSide, start/endArrowWidth, start/endArrowLength, lineCount, lineGap}.
-	 * @property {Array} components Visible components in panel. The default value is ['startingArrow', 'endingArrow', 'line'].
-	 */
-	/**
-	 * Invoked when the params has been set.
-	 *   event param of it has field: {value}
-	 * @name Kekule.ChemWidget.GlyphPathSettingPanel#valueChange
-	 * @event
-	 */
-	Kekule.ChemWidget.GlyphPathSettingPanel = Class.create(Kekule.Widget.Panel,
-	/** @lends Kekule.ChemWidget.GlyphPathSettingPanel# */
+
+/**
+ * An panel to set the properties of a path glyph.
+ * @class
+ * @augments Kekule.Widget.Panel
+ *
+ * @property {Hash} value Path params, including fields {start/endArrowType, start/endArrowSide, start/endArrowWidth, start/endArrowLength, lineCount, lineGap}.
+ * @property {Array} components Visible components in panel. The default value is ['startingArrow', 'endingArrow', 'line'].
+ */
+/**
+ * Invoked when the params has been set.
+ *   event param of it has field: {value}
+ * @name Kekule.ChemWidget.GlyphPathSettingPanel#valueChange
+ * @event
+ */
+/**
+ * Invoked when the new params are setting in the widget.
+ *   event param of it has field: {value}
+ * @name Kekule.ChemWidget.GlyphPathSettingPanel#valueInput
+ * @event
+ */
+Kekule.ChemWidget.GlyphPathSettingPanel = Class.create(Kekule.Widget.Panel,
+/** @lends Kekule.ChemWidget.GlyphPathSettingPanel# */
+{
+	/** @private */
+	CLASS_NAME: 'Kekule.ChemWidget.GlyphPathSettingPanel',
+	/** @private */
+	DEF_COMPONENTS: ['startingArrow', 'endingArrow', 'line'],
+	/** @construct */
+	initialize: function($super, parentOrElementOrDocument)
 	{
-		/** @private */
-		CLASS_NAME: 'Kekule.ChemWidget.GlyphPathSettingPanel',
-		/** @private */
-		DEF_COMPONENTS: ['startingArrow', 'endingArrow', 'line'],
-		/** @construct */
-		initialize: function($super, parentOrElementOrDocument)
-		{
-			$super(parentOrElementOrDocument);
-			this.addEventListener('valueChange', this.reactChildSetterValueChange.bind(this));
-		},
-		/** @private */
-		initProperties: function() {
-			this.defineProp('value', {
-				'dataType': DataType.HASH,
-				'getter': function()
+		$super(parentOrElementOrDocument);
+		this.addEventListener('valueChange', this.reactChildSetterValueChange.bind(this));
+		this.addEventListener('valueInput', this.reactChildSetterValueInput.bind(this));
+	},
+	/** @private */
+	initProperties: function() {
+		this.defineProp('value', {
+			'dataType': DataType.HASH,
+			'getter': function()
+			{
+				var result = {};
+				if (this._startingArrowSetter)
+					result = Object.extend(result, this._addPropPrefix(this._startingArrowSetter.getValue(), 'start'));
+				if (this._endingArrowSetter)
+					result = Object.extend(result, this._addPropPrefix(this._endingArrowSetter.getValue(), 'end'));
+				if (this._lineSetter)
+					result = Object.extend(result, this._lineSetter.getValue());
+				return result;
+			},
+			'setter': function(value) {
+				if (value)
 				{
-					var result = {};
+					var splitted = this._splitChildSetterValues(value);
 					if (this._startingArrowSetter)
-						result = Object.extend(result, this._addPropPrefix(this._startingArrowSetter.getValue(), 'start'));
+						this._startingArrowSetter.setValue(splitted.startingArrow);
 					if (this._endingArrowSetter)
-						result = Object.extend(result, this._addPropPrefix(this._endingArrowSetter.getValue(), 'end'));
+						this._endingArrowSetter.setValue(splitted.endingArrow);
 					if (this._lineSetter)
-						result = Object.extend(result, this._lineSetter.getValue());
-					return result;
-				},
-				'setter': function(value) {
-					if (value)
-					{
-						var splitted = this._splitChildSetterValues(value);
-						if (this._startingArrowSetter)
-							this._startingArrowSetter.setValue(splitted.startingArrow);
-						if (this._endingArrowSetter)
-							this._endingArrowSetter.setValue(splitted.endingArrow);
-						if (this._lineSetter)
-							this._lineSetter.setValue(splitted.line);
-					}
+						this._lineSetter.setValue(splitted.line);
 				}
-			});
-			this.defineProp('components', {'dataType': DataType.ARRAY});
-		},
-		/** @ignore */
-		doObjectChange: function($super, modifiedPropNames)
-		{
-			if (modifiedPropNames.indexOf('components') >= 0)
-				this.updateComponents();
-			return $super(modifiedPropNames);
-		},
-		/** @ignore */
-		doGetWidgetClassName: function($super)
-		{
-			return $super() + ' ' + CCNS.GLYPH_PATH_SETTING_PANEL;
-		},
-		/** @ignore */
-		doCreateSubElements: function($super, doc, rootElem)
-		{
-			var result = $super(doc, rootElem);
-			var secArrow1 = this.doCreateArrowSettingSection(doc, rootElem, Kekule.$L('ChemWidgetTexts.CAPTION_STARTING_ARROW'));
-			this._startingArrowSetter = secArrow1.widget;
-			this._startingArrowElem = secArrow1.elem;
-			var secArrow2 = this.doCreateArrowSettingSection(doc, rootElem, Kekule.$L('ChemWidgetTexts.CAPTION_ENDING_ARROW'));
-			this._endingArrowSetter = secArrow2.widget;
-			this._endingArrowElem = secArrow2.elem;
-			var secLine = this.doCreateLineSettingSection(doc, rootElem, Kekule.$L('ChemWidgetTexts.CAPTION_LINE'));
-			this._lineSetter = secLine.widget;
-			this._lineElem = secLine.elem;
-			result = result.concat([secArrow1.elem, secArrow2.elem, secLine.elem]);
+			}
+		});
+		this.defineProp('components', {'dataType': DataType.ARRAY});
+	},
+	/** @ignore */
+	doObjectChange: function($super, modifiedPropNames)
+	{
+		if (modifiedPropNames.indexOf('components') >= 0)
 			this.updateComponents();
-			return result;
-		},
-		/** @private */
-		doCreateSectionElem: function(doc, parentElem, caption, className)
-		{
-			var elem = doc.createElement('div');
-			var titleElem = doc.createElement('label');
-			Kekule.DomUtils.setElementText(titleElem, caption);
-			titleElem.className = CCNS.GLYPH_PATH_SETTING_PANEL_SECTION_TITLE;
-			elem.appendChild(titleElem);
-			var cname = CCNS.GLYPH_PATH_SETTING_PANEL_SECTION;
-			if (className)
-				cname += ' ' + className;
-			elem.className = cname;
-			parentElem.appendChild(elem);
-			return elem;
-		},
-		/** @private */
-		doCreateArrowSettingSection: function(doc, parentElem, caption)
-		{
-			var elem = this.doCreateSectionElem(doc, parentElem, caption);
-			var panel = new Kekule.ChemWidget.GlyphPathArrowSettingPanel(this);
-			panel.addClassName(CCNS.GLYPH_PATH_SETTING_PANEL_SECTION_PANEL);
-			panel.appendToElem(elem);
-			return {'elem': elem, 'widget': panel};
-		},
-		/** @private */
-		doCreateLineSettingSection: function(doc, parentElem, caption)
-		{
-			var elem = this.doCreateSectionElem(doc, parentElem, caption);
-			var panel = new Kekule.ChemWidget.GlyphPathLineSettingPanel(this);
-			panel.addClassName(CCNS.GLYPH_PATH_SETTING_PANEL_SECTION_PANEL);
-			panel.appendToElem(elem);
-			return {'elem': elem, 'widget': panel};
-		},
+		return $super(modifiedPropNames);
+	},
+	/** @ignore */
+	doGetWidgetClassName: function($super)
+	{
+		return $super() + ' ' + CCNS.GLYPH_PATH_SETTING_PANEL;
+	},
+	/** @ignore */
+	doCreateSubElements: function($super, doc, rootElem)
+	{
+		var result = $super(doc, rootElem);
+		var secArrow1 = this.doCreateArrowSettingSection(doc, rootElem, Kekule.$L('ChemWidgetTexts.CAPTION_STARTING_ARROW'));
+		this._startingArrowSetter = secArrow1.widget;
+		this._startingArrowElem = secArrow1.elem;
+		var secArrow2 = this.doCreateArrowSettingSection(doc, rootElem, Kekule.$L('ChemWidgetTexts.CAPTION_ENDING_ARROW'));
+		this._endingArrowSetter = secArrow2.widget;
+		this._endingArrowElem = secArrow2.elem;
+		var secLine = this.doCreateLineSettingSection(doc, rootElem, Kekule.$L('ChemWidgetTexts.CAPTION_LINE'));
+		this._lineSetter = secLine.widget;
+		this._lineElem = secLine.elem;
+		result = result.concat([secArrow1.elem, secArrow2.elem, secLine.elem]);
+		this.updateComponents();
+		return result;
+	},
 	
-		/** @private */
-		updateComponents: function()
+	/** @private */
+	doCreateSectionElem: function(doc, parentElem, caption, className)
+	{
+		var elem = doc.createElement('div');
+		var titleElem = doc.createElement('label');
+		Kekule.DomUtils.setElementText(titleElem, caption);
+		titleElem.className = CCNS.GLYPH_PATH_SETTING_PANEL_SECTION_TITLE;
+		elem.appendChild(titleElem);
+		var cname = CCNS.GLYPH_PATH_SETTING_PANEL_SECTION;
+		if (className)
+			cname += ' ' + className;
+		elem.className = cname;
+		parentElem.appendChild(elem);
+		return elem;
+	},
+	/** @private */
+	doCreateArrowSettingSection: function(doc, parentElem, caption)
+	{
+		var elem = this.doCreateSectionElem(doc, parentElem, caption);
+		var panel = new Kekule.ChemWidget.GlyphPathArrowSettingPanel(this);
+		panel.addClassName(CCNS.GLYPH_PATH_SETTING_PANEL_SECTION_PANEL);
+		panel.appendToElem(elem);
+		return {'elem': elem, 'widget': panel};
+	},
+	/** @private */
+	doCreateLineSettingSection: function(doc, parentElem, caption)
+	{
+		var elem = this.doCreateSectionElem(doc, parentElem, caption);
+		var panel = new Kekule.ChemWidget.GlyphPathLineSettingPanel(this);
+		panel.addClassName(CCNS.GLYPH_PATH_SETTING_PANEL_SECTION_PANEL);
+		panel.appendToElem(elem);
+		return {'elem': elem, 'widget': panel};
+	},
+	/** @private */
+	updateComponents: function()
+	{
+		var components = this.getComponents() || this.DEF_COMPONENTS;
+		var SU = Kekule.StyleUtils;
+		SU.setDisplay(this._startingArrowElem, components.indexOf('startingArrow') >= 0);
+		SU.setDisplay(this._endingArrowElem, components.indexOf('endingArrow') >= 0);
+		SU.setDisplay(this._lineElem, components.indexOf('line') >= 0);
+	},
+	/** @private */
+	reactChildSetterValueChange: function(e)
+	{
+		var w = e.widget;
+		if (w && this.getChildValueSetterWidgets().indexOf(w) >= 0)
 		{
-			var components = this.getComponents() || this.DEF_COMPONENTS;
-			var SU = Kekule.StyleUtils;
-			SU.setDisplay(this._startingArrowElem, components.indexOf('startingArrow') >= 0);
-			SU.setDisplay(this._endingArrowElem, components.indexOf('endingArrow') >= 0);
-			SU.setDisplay(this._lineElem, components.indexOf('line') >= 0);
-		},
-	
-		/** @private */
-		reactChildSetterValueChange: function(e)
-		{
-			var w = e.widget;
-			if (w && this.getChildValueSetterWidgets().indexOf(w) >= 0)
-			{
-				var newValue = this.getValue();
-				e.stopPropagation();
-				this.notifyPropSet('value', newValue);
-				//console.log('value change', newValue);
-				this.invokeEvent('valueChange', {'value': newValue});
-				//console.log('value change end');
-			}
-		},
-		/** @private */
-		getChildValueSetterWidgets: function(widget)
-		{
-			return [this._startingArrowSetter, this._endingArrowSetter, this._lineSetter];
-		},
-		/** @private */
-		_addPropPrefix: function(hash, propPrefix)
-		{
-			var result = {};
-			var propNames = OU.getOwnedFieldNames(hash, false);
-			for (var i = 0, l = propNames.length; i < l; ++i)
-			{
-				var value = hash[propNames[i]];
-				result[propPrefix + propNames[i].capitalizeFirst()] = value;
-			}
-			return result;
-		},
-		/** @private */
-		_splitChildSetterValues: function(totalValue)
-		{
-			var result = {
-				'startingArrow': {},
-				'endingArrow': {},
-				'line': {}
-			};
-			var propNames = OU.getOwnedFieldNames(totalValue);
-			for (var i = 0, l = propNames.length; i < l; ++i)
-			{
-				var propName = propNames[i];
-				var value = totalValue[propName];
-				var convPropName;
-				if (propName.startsWith('startArrow'))
-				{
-					convPropName = 'arrow' + propName.substr(10);
-					result.startingArrow[convPropName] = value;
-				}
-				else if (propName.startsWith('endArrow'))
-				{
-					convPropName = 'arrow' + propName.substr(8);
-					result.endingArrow[convPropName] = value;
-				}
-				else
-					result.line[propName] = value;
-			}
-			return result;
+			var newValue = this.getValue();
+			e.stopPropagation();
+			this.notifyPropSet('value', newValue);
+			//console.log('value change', newValue);
+			this.invokeEvent('valueChange', {'value': newValue});
+			//console.log('value change end');
 		}
-	});
+	},
+	/** @private */
+	reactChildSetterValueInput: function(e)
+	{
+		var w = e.widget;
+		if (w && this.getChildValueSetterWidgets().indexOf(w) >= 0)
+		{
+			var newValue = this.getValue();
+			e.stopPropagation();
+			this.notifyPropSet('value', newValue);
+			//console.log('value change', newValue);
+			this.invokeEvent('valueInput', {'value': newValue});
+			//console.log('value change end');
+		}
+	},
+	/** @private */
+	getChildValueSetterWidgets: function(widget)
+	{
+		return [this._startingArrowSetter, this._endingArrowSetter, this._lineSetter];
+	},
+	/** @private */
+	_addPropPrefix: function(hash, propPrefix)
+	{
+		var result = {};
+		var propNames = OU.getOwnedFieldNames(hash, false);
+		for (var i = 0, l = propNames.length; i < l; ++i)
+		{
+			var value = hash[propNames[i]];
+			result[propPrefix + propNames[i].capitalizeFirst()] = value;
+		}
+		return result;
+	},
+	/** @private */
+	_splitChildSetterValues: function(totalValue)
+	{
+		var result = {
+			'startingArrow': {},
+			'endingArrow': {},
+			'line': {}
+		};
+		var propNames = OU.getOwnedFieldNames(totalValue);
+		for (var i = 0, l = propNames.length; i < l; ++i)
+		{
+			var propName = propNames[i];
+			var value = totalValue[propName];
+			var convPropName;
+			if (propName.startsWith('startArrow'))
+			{
+				convPropName = 'arrow' + propName.substr(10);
+				result.startingArrow[convPropName] = value;
+			}
+			else if (propName.startsWith('endArrow'))
+			{
+				convPropName = 'arrow' + propName.substr(8);
+				result.endingArrow[convPropName] = value;
+			}
+			else
+				result.line[propName] = value;
+		}
+		return result;
+	}	
+});
 	
 	/**
 	 * An panel to set the properties of a reaction arrow glyph.
