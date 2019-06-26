@@ -1888,6 +1888,13 @@ Kekule.ChemWidget.GlyphPathArrowSettingPanel = Class.create(Kekule.Widget.Panel,
 			this.notifyPropSet('value', newValue);
 			this.invokeEvent('valueChange', {'value': newValue});
 		},
+
+		/** @private */
+		notifyValueInput: function(newValue)
+		{
+			this.notifyPropSet('value', newValue);
+			this.invokeEvent('valueInput', {'value': newValue});
+		},
 	
 		/** @private */
 		reactArrowStyleButtonCheck: function(e)
