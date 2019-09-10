@@ -293,6 +293,12 @@ Kekule.ChemWidget.ChemObjInserter = Class.create(Kekule.ChemWidget.AbstractWidge
 	},
 
 	/** @ignore */
+	elementBound: function(element)
+	{
+		this.setObserveElemResize(true);
+	},
+
+	/** @ignore */
 	doResize: function($super)
 	{
 		// notify children

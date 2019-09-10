@@ -1470,12 +1470,6 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 	},
 
 	/** @ignore */
-	initPropValues: function($super)
-	{
-		$super();
-	},
-
-	/** @ignore */
 	doCreateRootElement: function(doc)
 	{
 		var result = doc.createElement('div');
@@ -1514,6 +1508,13 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 		var result = $super() + ' ' + CCNS.COMPOSER;
 		return result;
 	},
+
+	/** @ignore */
+	elementBound: function(element)
+	{
+		this.setObserveElemResize(true);
+	},
+
 	/** @ignore */
 	doWidgetShowStateChanged: function($super, isShown)
 	{
