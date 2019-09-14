@@ -3656,7 +3656,7 @@ Kekule.ChemObjList = Class.create(Kekule.ChemObject,
 	 */
 	toArray: function()
 	{
-		return this.getItems();
+		return this.getItems() || [];
 	},
 
 	/**
