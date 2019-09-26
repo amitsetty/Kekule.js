@@ -18,9 +18,12 @@ module.exports = function(Kekule){
 		return {'language': parts[0], 'local': parts[1]};
 	}
 
+	if (!$root)
+		$root = {};
+
 	var rootObj = Kekule;
 	var DEF_LANGUAGE = 'en-US';
-	var language = Kekule.language || ($root.navigator? navigator.language || navigator.browserLanguage: DEF_LANGUAGE);
+	var language = Kekule.language || (($root && $root.navigator)? navigator.language || navigator.browserLanguage: DEF_LANGUAGE);
 	rootObj.language = language;  // save language info
 	var lanInfo = analysisLanguage(language);
 	var defLanInfo = analysisLanguage(DEF_LANGUAGE);
