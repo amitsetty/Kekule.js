@@ -226,6 +226,7 @@ ClassEx.extend(Kekule.ChemObject,
 	},
 	/**
 	 * Insert marker to index. If index is not set, marker will be inserted to the tail of the marker array.
+	 * If marker already inside, its poition will be adjusted.
 	 * @param {Kekule.ChemObject} marker
 	 * @param {Int} index
 	 */
@@ -235,14 +236,10 @@ ClassEx.extend(Kekule.ChemObject,
 		var markers = this.getAttachedMarkers(true);
 		if (Kekule.ObjUtils.isUnset(index) || (index < 0))
 			index = markers.length;
-		if (i >= 0)  // already inside, adjust position
+
+		var r = AU.insertUniqueEx(markers, marker, index);
+		if (r.isInserted)
 		{
-			markers.splice(i, 1);
-			markers.splice(index, 0, marker);
-		}
-		else // new one
-		{
-			markers.splice(index, 0, marker);
 			if (marker.setOwner)
 				marker.setOwner(this.getOwner());
 			if (marker.setParent)
@@ -250,7 +247,7 @@ ClassEx.extend(Kekule.ChemObject,
 			this._attachedMarkerAdded(marker);
 		}
 		this.notifyAttachedMarkersChanged();
-		return index;
+		return r.index;
 	},
 	/**
 	 * Change index of marker.
@@ -404,6 +401,31 @@ ClassEx.extendMethod(Kekule.ChemObject, 'insertBefore', function($origin, child,
 	}
 	return result;
 });
+ClassEx.extendMethod(Kekule.ChemObject, 'getChildSubgroupNames', function($origin){
+	return $origin().concat('marker');
+});
+/*  marker should manually be inserted with insertMarkerBefore method
+ClassEx.extendMethod(Kekule.ChemObject, 'getBelongChildSubGroupName', function($origin){
+	var result = $origin();
+	if (!result)
+		result = 'marker';
+	return result;
+});
+*/
+/*
+ClassEx.extendMethod(Kekule.ChemObject, 'getChildCount', function($origin){
+	return $origin() + this.getMarkerCount();
+});
+ClassEx.extendMethod(Kekule.ChemObject, 'getChildAt', function($origin, index){
+	return $origin(index) || this.getMarkerAt(index);
+});
+ClassEx.extendMethod(Kekule.ChemObject, 'indexOfChild', function($origin, child){
+	var result = $origin(child);
+	if (result < 0)
+		result = this.indexOfMarker(child);
+	return result;
+});
+*/
 
 ClassEx.defineProp(Kekule.ChemObject, 'attachedMarkers',
 {
