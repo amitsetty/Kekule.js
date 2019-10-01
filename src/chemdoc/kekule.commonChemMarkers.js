@@ -44,7 +44,12 @@ Kekule.ChemMarker.BaseMarker = Class.create(Kekule.ChemObject,
 	getAutoIdPrefix: function()
 	{
 		return 'marker';
-	}
+	},
+	/** @private */
+	getAcceptCoordStickFrom: function(fromObj)
+	{
+		return (!this.isSiblingWith(fromObj) && !(fromObj instanceof Kekule.ChemStructureNode) && !(fromObj instanceof Kekule.BaseStructureConnector));
+	},
 });
 Kekule.ClassDefineUtils.addStandardCoordSupport(Kekule.ChemMarker.BaseMarker);
 
@@ -68,6 +73,11 @@ Kekule.ChemMarker.UnbondedElectronSet = Class.create(Kekule.ChemMarker.BaseMarke
 	{
 		$super();
 		this.setElectronCount(2);  // default is lone pair
+	},
+	/** @ignore */
+	getAutoIdPrefix: function()
+	{
+		return 'electron';
 	}
 });
 
@@ -197,6 +207,11 @@ Kekule.ChemMarker.Charge = Class.create(Kekule.ChemMarker.ChemPropertyMarker,
 	getPropertyName: function()
 	{
 		return 'charge';
+	},
+	/** @ignore */
+	getAutoIdPrefix: function()
+	{
+		return 'charge';
 	}
 });
 
@@ -215,6 +230,11 @@ Kekule.ChemMarker.Radical = Class.create(Kekule.ChemMarker.ChemPropertyMarker,
 	CLASS_NAME: 'Kekule.ChemMarker.Radical',
 	/** @ignore */
 	getPropertyName: function()
+	{
+		return 'radical';
+	},
+	/** @ignore */
+	getAutoIdPrefix: function()
 	{
 		return 'radical';
 	}
