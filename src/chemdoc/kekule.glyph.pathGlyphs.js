@@ -444,6 +444,7 @@ Kekule.Glyph.PathGlyphConnector = Class.create(Kekule.BaseStructureConnector,
 				result = point;
 				this.notifyPropSet('controlPoints', this.getControlPoints());
 			}
+			return r.index;
 		}
 		return result;
 	},
