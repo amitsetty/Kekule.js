@@ -2250,6 +2250,7 @@ Kekule.ChemObject = Class.create(ObjectEx,
 							}
 							else
 								values.push(undefined);
+							//console.log('ref handle load array', rootObj.getId(), propName, indexStack, values);
 						}
 						this.setPropValue(propName, values);
 					}
@@ -2263,7 +2264,7 @@ Kekule.ChemObject = Class.create(ObjectEx,
 							;
 						if (value)
 						{
-							//console.log('set ref prop value', propName, indexStack, value);
+							//console.log('ref handle load simple', rootObj.getId(), propName, indexStack, value);
 							this.setPropValue(propName, value);
 						}
 					}
@@ -2961,7 +2962,9 @@ Kekule.ChemObject = Class.create(ObjectEx,
 			{
 				var result = indexOfMethod.apply(this, [obj]);
 				if (result >= 0)
-					return result;
+				{
+					return this._getPrevSubgroupChildrenCount(subgroups[i]) + result;
+				}
 			}
 		}
 		return -1;
