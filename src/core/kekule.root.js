@@ -88,7 +88,7 @@ Kekule._registerAfterLoadSysProc = function(proc)
 	if (proc)
 	{
 		if (Kekule.LOADED)
-			proc();
+			proc.defer();
 		else
 			Kekule._afterLoadSysProcedures.push(proc);
 	}
@@ -103,7 +103,7 @@ Kekule._ready = function(proc)
 	if (proc)
 	{
 		if (Kekule.LOADED)
-			proc();
+			proc.defer();
 		else
 			Kekule._afterLoadUserProcedures.push(proc);
 	}
@@ -169,6 +169,30 @@ if (!Kekule.scriptSrcInfo && Kekule.$jsRoot.document)  // script info not found,
 		}
 		return null;
 	})();
+}
+
+if (Kekule.$jsRoot['__$kekule_scriptfile_utils__'])  // script file util methods
+{
+	Kekule._ScriptFileUtils_ = Kekule.$jsRoot['__$kekule_scriptfile_utils__'];
+	Kekule.modules = function(modules, callback)   // util function to load additional modules in a existing Kekule environment, useful in node.js
+	{
+		var actualModules = [];
+		if (typeof(modules) === 'string')  // a single string module param
+			actualModules = [modules];
+		else
+			actualModules = modules;  // array param
+
+		var scriptSrcInfo = Kekule.scriptSrcInfo;
+		if (scriptSrcInfo)
+		{
+			var details = Kekule._ScriptFileUtils_.loadModuleScriptFiles(actualModules, scriptSrcInfo.useMinFile, Kekule.scriptSrcInfo.path, scriptSrcInfo, callback);
+			//console.log(details);
+			return this;
+		}
+		else
+			return this;
+	};
+	Kekule.loadModules = Kekule.modules;  // alias of function Kekule.modules
 }
 
 Kekule.getScriptPath = function()
