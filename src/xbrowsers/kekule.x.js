@@ -16,7 +16,7 @@ var ObjectEx = require('../lan/classes').ObjectEx
 var DataType = require('../lan/classes').DataType
 module.exports = function (Kekule) {
 
-	//var $root = window;
+var $root = window;
 var	window = $root, document = window && window.document;
 
 if (typeof(navigator) === "undefined")   // not in browser environment, node.js?
