@@ -16,6 +16,16 @@ var ObjectEx = require('../lan/classes').ObjectEx
 var DataType = require('../lan/classes').DataType
 module.exports = function (Kekule) {
 
+if (typeof(Kekule) === 'undefined')
+	Kekule = {};
+
+if (typeof(navigator) === "undefined")   // not in browser environment, node.js?
+{
+	Kekule.Browser = {};
+	Kekule.BrowserFeature = {};
+}
+else
+{     // start of browser detect part
 /**
  * Browser Check.
  * @class
@@ -112,6 +122,9 @@ if (Kekule.$jsRoot.window) {
 		})()
 	};
 }
+
+}   // end of browser detect part
+
 
 // polyfill of requestAnimationFrame / cancelAnimationFrame
 if (Kekule.$jsRoot.requestAnimationFrame) {
@@ -1119,24 +1132,27 @@ X.Event._IEMethods = {
 	}
 };
 
-if (Kekule.$document && Kekule.$document.addEventListener)  // W3C browser
+if (document)
 {
-	X.Event = Object.extend(X.Event, X.Event._W3C);
-	X.Event.Methods = Object.extend(X.Event.Methods, X.Event._W3CMethods);
-	if (Kekule.Browser.Gecko)  // fix Firefox mousewheel event lacking
+	if (document.addEventListener)  // W3C browser
 	{
-		X.Event = Object.extend(X.Event, X.Event._Gecko);
+		X.Event = Object.extend(X.Event, X.Event._W3C);
+		X.Event.Methods = Object.extend(X.Event.Methods, X.Event._W3CMethods);
+		if (Kekule.Browser.Gecko)  // fix Firefox mousewheel event lacking
+		{
+			X.Event = Object.extend(X.Event, X.Event._Gecko);
+		}
 	}
-}
-if (Kekule.$document && Kekule.$document.attachEvent)  // IE 8
-{
-	X.Event = Object.extend(X.Event, X.Event._IE);
-	X.Event.Methods = Object.extend(X.Event.Methods, X.Event._IEMethods);
-	if (window.Element)
+	else if (document.attachEvent)  // IE 8
 	{
-		var elemPrototype = window.Element.prototype;
-		elemPrototype.addEventListener = X.Event.addListener.methodize();
-		elemPrototype.removeEventListener = X.Event.removeListener.methodize();
+		X.Event = Object.extend(X.Event, X.Event._IE);
+		X.Event.Methods = Object.extend(X.Event.Methods, X.Event._IEMethods);
+		if (window.Element)
+		{
+			var elemPrototype = window.Element.prototype;
+			elemPrototype.addEventListener = X.Event.addListener.methodize();
+			elemPrototype.removeEventListener = X.Event.removeListener.methodize();
+		}
 	}
 }
 
@@ -1147,8 +1163,8 @@ if (Kekule.$jsRoot.window && Kekule.$jsRoot.window.Event)
 	eproto = window.Event.prototype;
 if (!eproto)
 {
-	if (Kekule.$document && Kekule.$document.createEvent)
-		eproto = Kekule.$document.createEvent('HTMLEvents').__proto__;
+	if (document && document.createEvent)
+		eproto = document.createEvent('HTMLEvents').__proto__;
 }
 var hasEventPrototype = !!eproto;
 var eventObjMethods = {};
@@ -1469,7 +1485,7 @@ Kekule.X.DomReady = {
 	},
   initReady: function initReady()
   {
-	if (Kekule.$document && Kekule.$document.addEventListener) {
+    if (document && document.addEventListener) {
       document.addEventListener( "DOMContentLoaded", function(){
 	      document.removeEventListener( "DOMContentLoaded", initReady /*arguments.callee*/, false );//清除加载函数
         DOM.fireReady();
@@ -1477,7 +1493,7 @@ Kekule.X.DomReady = {
     }
     else
     {
-      if (Kekule.$document && Kekule.$document.getElementById) {
+      if (document && document.getElementById) {
         document.write('<script id="ie-domReady" defer="defer" src="\//:"><\/script>');
         document.getElementById("ie-domReady").onreadystatechange = function() {
           if (this.readyState === "complete") {
@@ -1492,7 +1508,7 @@ Kekule.X.DomReady = {
 };
 
 /** @ignore */
-var DOM = Kekule.X.DomReady
+var DOM = Kekule.X.DomReady;
 /**
  * Invoke when page DOM is loaded.
  * @param {Func} fn Callback function.
