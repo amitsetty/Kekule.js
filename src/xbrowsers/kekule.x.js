@@ -812,9 +812,8 @@ X.Event._MouseEventEx = {
 	}
 };
 
-X.Event._W3C =
-/** @lends Kekule.X.Event */
-{
+X.Event._W3C = {
+	/** @lends Kekule.X.Event */
 	/**
 	 * Add an event listener to element.
 	 * @param {Object} element HTML element.
