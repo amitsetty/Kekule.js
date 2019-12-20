@@ -562,7 +562,7 @@ Kekule.Render.PathGlyphCtab2DRenderer = Class.create(Kekule.Render.Ctab2DRendere
 		{
 			var r = initialRadius + i * lineGap;  // radius of current child arc
 
-			if (startArrowParams || endArrowParams && lineCount <= 1)  // TODO: now arrow can only be drawn with one child arc
+			if ((startArrowParams || endArrowParams) && lineCount <= 1)  // TODO: now arrow can only be drawn with one child arc
 			{
 				if (startArrowParams)
 				{
@@ -570,7 +570,7 @@ Kekule.Render.PathGlyphCtab2DRenderer = Class.create(Kekule.Render.Ctab2DRendere
 					if (i === 0)
 					{
 						var arrowRefCoord = CU.add(centerCoord, CU.multiply(startArrowRefVector, r));
-						Kekule.ArrayUtils.pushUnique(arrowElems, this.doDrawArrowShape(context, connector, arrowRefCoord, actualEndCoords[0], endArrowParams, shapeDrawOptions, true));
+						Kekule.ArrayUtils.pushUnique(arrowElems, this.doDrawArrowShape(context, connector, arrowRefCoord, actualEndCoords[0], startArrowParams, shapeDrawOptions, true));
 					}
 				}
 				if (endArrowParams)
