@@ -5871,6 +5871,12 @@ Kekule.Editor.BasicManipulationIaController = Class.create(Kekule.Editor.BaseEdi
 			var obj = actualObjs[i];
 			var info = this.createManipulateObjInfo(obj, i, startScreenCoord);
 			map.set(obj, info);
+
+			/*
+			// disable indirect coord during coord move
+			if (info.enableIndirectCoord)
+				obj.setEnableIndirectCoord(false);
+			*/
 		}
 	},
 	/** @private */
@@ -5880,7 +5886,8 @@ Kekule.Editor.BasicManipulationIaController = Class.create(Kekule.Editor.BaseEdi
 		this.setRotateCenter(rotateCenter);
 		this.setRotateRefCoord(rotateRefCoord);
 		this.setLastRotateAngle(null);
-	}, /**
+	},
+	/**
 	 * Prepare to move movingObjs.
 	 * Note that movingObjs may differ from actual moved objects (for instance, move a bond actually move its connected atoms).
 	 * @param {Hash} startContextCoord Mouse position when starting to move objects. This coord is based on context.
@@ -6511,6 +6518,25 @@ Kekule.Editor.BasicManipulationIaController = Class.create(Kekule.Editor.BaseEdi
 	{
 		// do nothing here
 	},
+
+	/** @private */
+	doManipulateObjectsEnd: function(manipulatingObjs)
+	{
+		var map = this.getManipulateObjInfoMap();
+		for (var i = manipulatingObjs.length - 1; i >= 0; --i)
+		{
+			this.doManipulateObjectEnd(manipulatingObjs[i], map.get(manipulatingObjs[i]));
+		}
+	},
+	/** @private */
+	doManipulateObjectEnd: function(manipulateObj, objInfo)
+	{
+		/*
+		if (objInfo.enableIndirectCoord && manipulateObj.setEnableIndirectCoord)
+			manipulateObj.setEnableIndirectCoord(true);
+		*/
+	},
+
 	/**
 	 * Called when a manipulation is ended (stopped or cancelled).
 	 * Descendants may override this method.
@@ -6523,10 +6549,15 @@ Kekule.Editor.BasicManipulationIaController = Class.create(Kekule.Editor.BaseEdi
 			window.cancelAnimationFrame(this._runManipulationStepId);
 			this._runManipulationStepId = null;
 		}
+		this.doManipulateObjectsEnd(this.getManipulateObjs());
 		var editor = this.getEditor();
 		editor.endManipulateObject();
 		this._lastTransformParams = null;
 		this.setIsOffsetManipulating(false);
+
+		this.setManipulateObjs(null);
+		this.getManipulateObjInfoMap().clear();
+		this.getObjOperationMap().clear();
 	},
 	/**
 	 * Called before method stopManipulate.
@@ -6543,9 +6574,6 @@ Kekule.Editor.BasicManipulationIaController = Class.create(Kekule.Editor.BaseEdi
 	 */
 	stopManipulate: function()
 	{
-		this.setManipulateObjs(null);
-		this.getManipulateObjInfoMap().clear();
-		this.getObjOperationMap().clear();
 		this.manipulateEnd();
 	},
 	/** @private */
@@ -6562,7 +6590,8 @@ Kekule.Editor.BasicManipulationIaController = Class.create(Kekule.Editor.BaseEdi
 			'objCoord': editor.getObjCoord(obj),  // abs base coord
 			//'objSelfCoord': obj.getCoordOfMode? obj.getCoordOfMode(editor.getCoordMode()): null,
 			'screenCoord': editor.getObjectScreenCoord(obj),
-			'size': editor.getObjSize(obj)
+			'size': editor.getObjSize(obj),
+			'enableIndirectCoord': !!(obj.getEnableIndirectCoord && obj.getEnableIndirectCoord())
 		};
 		info.hasNoCoord = !info.objCoord;
 		if (!info.hasNoCoord && startScreenCoord)
@@ -6571,6 +6600,7 @@ Kekule.Editor.BasicManipulationIaController = Class.create(Kekule.Editor.BaseEdi
 		{
 			info.stickTarget = obj.getCoordStickTarget();
 		}
+
 		return info;
 	},
 
