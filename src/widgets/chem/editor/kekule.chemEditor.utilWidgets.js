@@ -2496,6 +2496,7 @@ Kekule.ChemWidget.GlyphPathSettingPanel = Class.create(Kekule.Widget.Panel,
 		});
 		this.defineProp('components', {'dataType': DataType.ARRAY});
 
+		
 		/*
 		this.defineProp('showContinousStartArrowSidesSetter', {
 			'dataType': DataType.BOOL,
@@ -3262,6 +3263,40 @@ Kekule.ChemWidget.BaseGlyphElectronArrowSettingPanel = Class.create(Kekule.Widge
 		else
 			sides = [ASide.BOTH, ASide.SINGLE, ASide.REVERSED];
 		setter.setAllowedArrowSides(sides);
+	}
+});
+
+/**
+ * An panel to set the properties of an electron pushing arrow glyph.
+ * @class
+ * @augments Kekule.ChemWidget.BaseGlyphElectronArrowSettingPanel
+ */
+Kekule.ChemWidget.GlyphElectronPushingArrowSettingPanel = Class.create(Kekule.ChemWidget.BaseGlyphElectronArrowSettingPanel,
+/** @lends Kekule.ChemWidget.GlyphElectronPushingArrowSettingPanel# */
+{
+	/** @private */
+	CLASS_NAME: 'Kekule.ChemWidget.GlyphElectronPushingArrowSettingPanel',
+	/** @ignore */
+	doCreateGlyphPathSettingWidget: function()
+	{
+		return new Kekule.ChemWidget.GlyphArcPathSettingPanel(this);
+	}
+});
+
+/**
+ * An panel to set the properties of multi electron pushing arrow glyph (e.g. the bond forming arrow).
+ * @class
+ * @augments Kekule.ChemWidget.BaseGlyphElectronArrowSettingPanel
+ */
+Kekule.ChemWidget.GlyphMultiElectronPushingArrowSettingPanel = Class.create(Kekule.ChemWidget.BaseGlyphElectronArrowSettingPanel,
+/** @lends Kekule.ChemWidget.GlyphMultiElectronPushingArrowSettingPanel# */
+{
+	/** @private */
+	CLASS_NAME: 'Kekule.ChemWidget.GlyphMultiElectronPushingArrowSettingPanel',
+	/** @ignore */
+	doCreateGlyphPathSettingWidget: function()
+	{
+		return new Kekule.ChemWidget.GlyphMultiArcPathSettingPanel(this);
 	}
 });
 

@@ -618,65 +618,60 @@ Kekule.Glyph.BaseTwinArc = Class.create(Kekule.Glyph.PathGlyph,
 				var ratio = refDistance? crossPointDistance / refDistance: 0;
 				var minDistanceRatio = this._childPathNodeGetGlyphMinPathEndDistanceRatio() || 0;
 
-				if (ratio < 0)
 				if (ratio < minDistanceRatio)
 				{
-					ratio = 0;
 					ratio = minDistanceRatio;
-				} else {
-					if (ratio > 1) 
-					if (ratio > 1 - minDistanceRatio)
-					{
-						ratio = 1;
-						ratio = 1 - minDistanceRatio;
-					}
+				}
+				else if (ratio > 1 - minDistanceRatio)
+				{
+					ratio = 1 - minDistanceRatio;
 				}
 
 				return {'x': ratio, 'y': ratio, 'ratio': ratio};
 			}
 		}
+
 		return $old(coordMode, coordValue, oldCoordValue, allowCoordBorrow);
 	},
-		/** @private */
-		_insideNodeCalcIndirectCoordValue: function($old, coordMode, allowCoordBorrow)
+	/** @private */
+	_insideNodeCalcIndirectCoordValue: function($old, coordMode, allowCoordBorrow)
+	{
+		var glyph = this.getParent();
+		if (glyph && coordMode === CM.COORD2D)
 		{
-			var glyph = this.getParent();
-			if (glyph && coordMode === CM.COORD2D)
+			var refCoords = this.getIndirectCoordRefCoords(coordMode, allowCoordBorrow);
+			if (refCoords)
 			{
-				var refCoords = this.getIndirectCoordRefCoords(coordMode, allowCoordBorrow);
-				if (refCoords)
+				var refDelta = CU.substract(refCoords[1], refCoords[0]);
+				var nodeStart = glyph.getNodeAt(0);
+				var baseCoord = nodeStart.getCoordOfMode(coordMode);
+				var ratio = this.getIndirectCoordStorageOfMode(coordMode)['ratio'];
+				if (Kekule.ObjUtils.notUnset(ratio))
 				{
-					var refDelta = CU.substract(refCoords[1], refCoords[0]);
-					var nodeStart = glyph.getNodeAt(0);
-					var baseCoord = nodeStart.getCoordOfMode(coordMode);
-					var ratio = this.getIndirectCoordStorageOfMode(coordMode)['ratio'];
-					if (Kekule.ObjUtils.notUnset(ratio))
-					{
-						var delta = CU.multiply(refDelta, ratio);
-						var result = CU.add(baseCoord, delta);
-						//console.log('calc', this.getIndirectCoordStorageOfMode(coordMode), ratio, delta, result);
-						return result;
-					}
+					var delta = CU.multiply(refDelta, ratio);
+					var result = CU.add(baseCoord, delta);
+					//console.log('calc', this.getIndirectCoordStorageOfMode(coordMode), ratio, delta, result);
+					return result;
 				}
 			}
-	
-			return $old(coordMode, allowCoordBorrow);
-		},
-	
-	
-		/** @private */
-		_isValidChemNodeOrConnectorStickTarget: function(targetObj)
+		}
+
+		return $old(coordMode, allowCoordBorrow);
+	},
+
+	/** @private */
+	_isValidChemNodeOrConnectorStickTarget: function(targetObj)
+	{
+		var result = (targetObj instanceof Kekule.ChemStructureNode) || (targetObj instanceof Kekule.ChemStructureConnector);
+		if (!result && (targetObj instanceof Kekule.ChemMarker.BaseMarker))
 		{
-			var result = (targetObj instanceof Kekule.ChemStructureNode) || (targetObj instanceof Kekule.ChemStructureConnector);
-			if (!result && (targetObj instanceof Kekule.ChemMarker.BaseMarker))
-			{
-				var parent = targetObj.getParent && targetObj.getParent();
-				if (parent)  // the marker of node/connector (e.g., electron pair) can also be a valid target
-					result = (parent instanceof Kekule.ChemStructureNode) || (parent instanceof Kekule.ChemStructureConnector);
-			}
-			return result;
-		},
-		/** @ignore */
+			var parent = targetObj.getParent && targetObj.getParent();
+			if (parent)  // the marker of node/connector (e.g., electron pair) can also be a valid target
+				result = (parent instanceof Kekule.ChemStructureNode) || (parent instanceof Kekule.ChemStructureConnector);
+		}
+		return result;
+	},
+	/** @ignore */
 	getAllowChildCoordStickTo: function(child, dest)
 	{
 		var index = this.indexOfNode(child);
@@ -704,7 +699,6 @@ Kekule.Glyph.BaseTwinArc = Class.create(Kekule.Glyph.PathGlyph,
 	/** @private */
 	_isChildrenStickingTo: function(dest, excludeChildren)
 	{
-		var nodes = this.getNodes();
 		var nodes = this._getArrowStartingNodes();
 		nodes = Kekule.ArrayUtils.exclude(nodes, excludeChildren || []);
 		for (var i = 0, l = nodes.length; i < l; ++i)
