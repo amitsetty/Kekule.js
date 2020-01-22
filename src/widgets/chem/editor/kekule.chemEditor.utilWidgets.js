@@ -1936,7 +1936,13 @@ Kekule.ChemWidget.GlyphPathArrowSettingPanel = Class.create(Kekule.Widget.Panel,
 		if (notUnset(value))
 			inputter.setValue(value);
 	},
-
+	/** @private */
+	_updateWidthInputter: function(inputter)
+	{
+		if (!inputter)
+			inputter = this._arrowWidthInputter;
+		this._updateSizeInputter(inputter, this.getValue().arrowWidth, this.getArrowWidthMin(), this.getArrowWidthMax(), this.getArrowWidthStep());
+	},
 	/** @private */
 	_updateLengthInputter: function(inputter)
 	{
@@ -1986,10 +1992,32 @@ Kekule.ChemWidget.GlyphPathArrowSettingPanel = Class.create(Kekule.Widget.Panel,
 			e.stopPropagation();
 		}
 	},
-			
-		/** @private */
-		reactArrowSizeInputterInput: function(e)
+
+	/** @private */
+	reactArrowSizeInputterChange: function(e)
+	{
+		if (this._isSettingValue)  // input value by program, do not evoke event
+			return;
+		var w = e.widget;
+		if (w === this._arrowWidthInputter || w === this._arrowLengthInputter)
 		{
+			var size = w.getValue() && w.getValue();
+			if (OU.notUnset(size))
+			{
+				var v = this.getValue();
+				if (w === this._arrowWidthInputter)
+					v.arrowWidth = size;
+				else if (w === this._arrowLengthInputter)
+					v.arrowLength = size;
+				this.notifyValueChange(v);
+				e.stopPropagation();
+			}
+		}
+	},
+			
+	/** @private */
+	reactArrowSizeInputterInput: function(e)
+	{
 			if (this._isSettingValue)  // input value by program, do not evoke event
 				return;
 			var w = e.widget;

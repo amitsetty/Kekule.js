@@ -723,12 +723,12 @@ Kekule.Glyph.Arc = Class.create(Kekule.Glyph.BaseArc,
 		CLASS_NAME: 'Kekule.Glyph.Arc'
 	});
 	
-	/**
-	 * A general twin arc glyph.
-	 * @class
-	 * @augments Kekule.Glyph.BaseTwinArc
-	 */
-	Kekule.Glyph.TwinArc = Class.create(Kekule.Glyph.BaseTwinArc,
+/**
+ * A general twin arc glyph.
+ * @class
+ * @augments Kekule.Glyph.BaseTwinArc
+ */
+Kekule.Glyph.TwinArc = Class.create(Kekule.Glyph.BaseTwinArc,
 	/** @lends Kekule.Glyph.TwinArc# */
 	{
 		/** @private */

@@ -22,6 +22,9 @@ var CM = Kekule.CoordMode;
 var CU = Kekule.CoordUtils;
 var CM = Kekule.CoordMode;
 
+var CU = Kekule.CoordUtils;
+var CM = Kekule.CoordMode;
+
 /**
  * Represent an node in glyph path.
  * @class
@@ -519,7 +522,6 @@ Kekule.Glyph.PathGlyphConnector = Class.create(Kekule.BaseStructureConnector,
 				result = point;
 				this.notifyPropSet('controlPoints', this.getControlPoints());
 			}
-			return r.index;
 		}
 		return result;
 	},

@@ -1539,6 +1539,17 @@ Kekule.Widget.ComboBox = Class.create(Kekule.Widget.FormWidget,
 	}
 });
 
+/**
+ * An widget to input number, based on input element.
+ * Can be in to forms: slider (type=range) or number inputter (type=number).
+ * @class
+ * @augments Kekule.Widget.FormWidget
+ *
+ * @property {Number} minValue
+ * @property {Number} maxValue
+ * @property {Number} step
+ * @property {String} controlType Type of input element, should be either 'range' or 'number'.
+ */
 Kekule.Widget.NumInput = Class.create(Kekule.Widget.FormWidget,
 	/** @lends Kekule.Widget.NumInput# */
 	{

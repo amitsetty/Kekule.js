@@ -767,7 +767,6 @@ ClassEx.extend(Kekule.Glyph.BaseArc,
 		}
 	}
 });
-
 ClassEx.extendMethod(Kekule.Glyph.BaseArc, 'createDefaultStructure', function($origin, refLength, initialParams)
 {
 	var result = $origin(refLength, initialParams);

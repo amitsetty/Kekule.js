@@ -20,6 +20,8 @@ module.exports = function(Kekule){
 
 var AU = Kekule.ArrayUtils;
 
+var AU = Kekule.ArrayUtils;
+
 /**
  * A namespace for operation about normal ChemObject instance.
  * @namespace

@@ -2895,6 +2895,315 @@ Kekule.ChemObject = Class.create(ObjectEx,
 	 */
 	ownerChanged: function(newOwner, oldOwner)
 	{
+		if (!prop.serializable)
+			return;
+		//var owner = obj.getOwner();  // on loading, the owner may not be set yet
+		//if (owner)
+		{
+			var isObjRefProp = !!prop.objRef;
+			if (isObjRefProp)  // this property is an object reference, refers to another object(s) in this chem space
+			{
+				var objRefRootOnParent = (prop.objRefRoot === 'parent');
+				var storageObj = objRefRootOnParent? obj.__load_parent_objRef_props__: obj.__load_owner_objRef_props__; // default is based on owner
+				if (!storageObj)
+				{
+					storageObj = {};
+					if (objRefRootOnParent)
+						obj.__load_parent_objRef_props__ = storageObj;
+					else
+						obj.__load_owner_objRef_props__ = storageObj;
+				}
+				// retrieve the ref str first
+				var value = serializer.doLoadFieldValue(obj, prop.name, storageNode /*, DataType.STRING*/);
+				if (value)
+				{
+					if (typeof(value) === 'string' && value.startsWith(S_PREFIX_OBJ_REF))  // maybe a reference string
+					{
+						//var indexStack = this._doUnwrapObjRefSerializationStr(obj, prop, value);
+						//if (indexStack)
+						{
+							storageObj[prop.name] = value;  // save this index stack string, and set the real object after the chem space is loaded
+							return true;    // handled, do not load again in default action
+						}
+					}
+					else if (DataType.isArrayValue(value))  // may be an ref array
+					{
+						storageObj[prop.name] = value;  // save this index stack array, and set the real object after the chem space is loaded
+						return true;    // handled, do not load again in default action
+					}
+				}
+				//return true;  // handled, do not load again in default action
+			}
+		}
+	},
+	/** @private */
+	_doUnwrapObjRefSerializationStr: function(currObj, serializationStr)
+	{
+		try
+		{
+			var jsonStr = serializationStr.substr(1);  // remove leading @
+			var indexStack = JSON.parse(jsonStr);
+			if (DataType.isArrayValue(indexStack))
+			{
+				return indexStack;
+			}
+			else
+				return null;
+		}
+		catch(e)
+		{
+			Kekule.error(e);
+		}
+	},
+
+	/** @private */
+	loaded: function($super)
+	{
+		$super();
+		this.notifyParentLoaded();
+	},
+
+	/** @private */
+	notifyParentLoaded: function()
+	{
+		// when the whole object is loaded from external data, notify all child objects.
+		for (var i = 0, l = this.getChildCount(); i < l; ++i)
+		{
+			var child = this.getChildAt(i);
+			if (child && child._parentObjectLoaded)
+				child._parentObjectLoaded(this);
+		}
+	},
+
+	/** @private */
+	isObjRefProperty: function(prop)
+	{
+		return !!(prop && prop.objRef);
+	},
+	/** @ignore */
+	notifyPropSet: function($super, propName, newValue, doNotEvokeObjChange)
+	{
+		$super(propName, newValue, doNotEvokeObjChange);
+		// if a obj ref property is modified, inform the owner
+		var prop = this.getPropInfo(propName);
+		if (prop && this.isObjRefProperty(prop))
+		{
+			var owner = this.getOwner();
+			if (owner && owner.modifyObjRefRelation)
+			{
+				owner.modifyObjRefRelation(this, prop, this.getPropValue(prop.name));
+			}
+		}
+	},
+
+	/**
+	 * Returns all object reference properties in this object.
+	 * @returns {Array}
+	 * @private
+	 */
+	getObjRefProperties: function()
+	{
+		var result = [];
+		var props = this.getAllPropList();
+		for (var i = 0, l = props.getLength(); i < l; ++i)
+		{
+			var prop = props.getPropInfoAt(i);
+			if (this.isObjRefProperty(prop))
+				result.push(prop);
+		}
+		return result;
+	},
+	/**
+	 * Register all object reference property relations to current owner.
+	 * @param {Kekule.ChemSpace} owner
+	 * @private
+	 */
+	_registerObjRefRelations: function(owner)
+	{
+		if (owner && owner.modifyObjRefRelation)
+		{
+			var props = this.getObjRefProperties();
+			if (props.length)
+			{
+				for (var i = 0, l = props.length; i < l; ++i)
+				{
+					var prop = props[i];
+					var value = this.getPropValue(prop.name);
+					//console.log('register relations', owner.getClassName(), prop.name, !!value);
+					owner.modifyObjRefRelation(this, prop, value);
+				}
+			}
+		}
+	},
+	/**
+	 * Unregister all object reference property relations to current owner.
+	 * @param {Kekule.ChemSpace} owner
+	 * @private
+	 */
+	_unregisterObjRefRelations: function(owner)
+	{
+		if (owner && owner.releaseObjRefRelation)
+		{
+			var props = this.getObjRefProperties();
+			if (props.length)
+			{
+				for (var i = 0, l = props.length; i < l; ++i)
+				{
+					var prop = props[i];
+					//console.log('unregister relations', owner.getClassName(), prop.name);
+					owner.releaseObjRefRelation(this, prop);
+				}
+			}
+		}
+	},
+
+	/**
+	 * Check whether this object can be selected alone in editor.
+	 */
+	isSelectable: function()
+	{
+		var IM = Kekule.ChemObjInteractMode;
+		var interactMode = this.getInteractMode() || IM.DEFAULT;
+		return !(interactMode & IM.UNSELECTABLE);
+	},
+	/**
+	 * Check whether this object can be moved alone in editor.
+	 */
+	isMovable: function()
+	{
+		var IM = Kekule.ChemObjInteractMode;
+		var interactMode = this.getInteractMode() || IM.DEFAULT;
+		return !(interactMode & IM.UNMOVABLE);
+	},
+	/**
+	 * Returns nearest selectable chem object.
+	 * Usually this method will return this object, but if this object is not selectable,
+	 * parent object will be returned instead.
+	 * @returns {Kekule.ChemObject}
+	 */
+	getNearestSelectableObject: function()
+	{
+		return this.isSelectable()? this:
+			this.getParent()? this.getParent().getNearestSelectableObject():
+			null;
+	},
+	/**
+	 * Returns nearest movable chem object.
+	 * Usually this method will return this object, but if this object is not selectable,
+	 * parent object will be returned instead.
+	 * @returns {Kekule.ChemObject}
+	 */
+	getNearestMovableObject: function()
+	{
+		return this.isMovable()? this:
+				this.getParent()? this.getParent().getNearestMovableObject():
+				null;
+	},
+	/**
+	 * Returns the nearest ancestor object of certain class.
+	 * @param {Class} ancestorClass
+	 * @returns {Kekule.ChemObject}
+	 */
+	getNearestAncestorOfType: function(ancestorClass)
+	{
+		var p = this.getParent();
+		if (p)
+		{
+			if (p instanceof ancestorClass)
+				return p;
+			else
+				return p.getNearestAncestorOfType? p.getNearestAncestorOfType(ancestorClass): null;
+		}
+		else
+			return null;
+	},
+
+	/**
+	 * Remove current object away from parent and owner.
+	 */
+	removeSelf: function()
+	{
+		this.setParent(null);
+		this.setOwner(null);
+	},
+
+	/** @private */
+	notifyScalarAttribsChange: function()
+	{
+		this.notifyPropSet('scalarAttribs', this.getPropStoreFieldValue('scalarAttribs'));
+	},
+	/** @private */
+	notifyInfoChange: function()
+	{
+		this.notifyPropSet('info', this.getPropStoreFieldValue('info'));
+	},
+
+	/**
+	 * Called when a child obj is removed from this parent.
+	 * User should not call this method directly
+	 * @param {Kekule.ChemObject} obj
+	 * @private
+	 */
+	_removeChildObj: function(obj)
+	{
+		this._notifyOwnerObjTreeOperation(obj, this, Kekule.ObjectTreeOperation.REMOVE);
+	},
+	/**
+	 * Called when a child obj is added to this parent.
+	 * User should not call this method directly
+	 * @param {Kekule.ChemObject} obj
+	 * @private
+	 */
+	_appendChildObj: function(obj)
+	{
+		this._notifyOwnerObjTreeOperation(obj, this, Kekule.ObjectTreeOperation.ADD);
+	},
+
+	/**
+	 * Notify the owner that a obj has been added or removed from object tree.
+	 * @param {Kekule.ChemObject} obj
+	 * @param {Kekule.ChemObject} parent
+	 * @param {Int} operation
+	 * @private
+	 */
+	_notifyOwnerObjTreeOperation: function(obj, parent, operation)
+	{
+		var owner = this.getOwner();
+		if (owner && owner._notifyObjTreeOperation)
+		{
+			owner._notifyObjTreeOperation(obj, parent, operation);
+		}
+	},
+
+	/**
+	 * Called when the owner's object tree has been changed (child added or removed to/from parent).
+	 * Descendants may override this method to update itself.
+	 * @param {Kekule.ChemObject} obj
+	 * @param {Kekule.ChemObject} parent
+	 * @param {Int} operation
+	 */
+	objTreeOfOwnerUpdated: function(obj, parent, operation)
+	{
+		// do nothing here
+	},
+	/**
+	 * Called when the owner's object tree has been changed (child added or removed from space).
+	 * Descendants may override this method to update itself.
+	 * @param {Kekule.ChemObject} obj
+	 * @param {Kekule.ChemObject} owner
+	 * @param {Int} operation
+	 */
+	objSpaceOfOwnerUpdated: function(obj, owner, operation)
+	{
+		// do nothing here
+	},
+
+	/**
+	 * Called after a new owner property is set. Descendants can override this method.
+	 * @private
+	 */
+	ownerChanged: function(newOwner, oldOwner)
+	{
 		// change scalar owners
 		for (var i = 0, l = this.getScalarAttribCount(); i < l; ++i)
 			this.getScalarAttribAt(i).setOwner(newOwner);
@@ -2913,6 +3222,167 @@ Kekule.ChemObject = Class.create(ObjectEx,
 	parentChanged: function(newParent, oldParent)
 	{
 		// do nothing here
+	},
+
+	/**
+	 * Returns an parent array ([this.parent, this.parent.parent, ...]).
+	 * @returns {Array}
+	 */
+	getParentList: function()
+	{
+		var result = [];
+		var p = this.getParent();
+		if (p)
+		{
+			if (p.getParentList)
+			{
+				result = p.getParentList() || [];
+			}
+			result.unshift(p);
+		}
+		return result;
+	},
+	/**
+	 * Check if this object is a child (direct or indirect) of another object.
+	 * @param obj
+	 */
+	isChildOf: function(obj)
+	{
+		var p = this.getParent();
+		while (p && (p !== obj))
+			p = p.getParent? p.getParent(): null;
+		return (!!p);
+	},
+	/**
+	 * Returns next sibling object in parent.
+	 * If parent not set, null will be returned.
+	 * @returns {Object}
+	 */
+	getNextSibling: function()
+	{
+		var parent = this.getParent();
+		if (parent && parent.getNextSiblingOfChild)
+		{
+			return parent.getNextSiblingOfChild(this);
+		}
+		else
+			return null;
+	},
+	/**
+	 * Check if obj has the same parent to this one.
+	 * @param {Kekule.ChemObject} obj
+	 * @returns {Bool}
+	 */
+	isSiblingWith: function(obj)
+	{
+		var pSelf = this.getParent();
+		var pObj = obj.getParent && obj.getParent();
+		return (pSelf && pObj && pSelf === pObj);
+	},
+
+	/**
+	 * If the child objects are hold by another object, this method should returns it.
+	 * E.g., ChemObjList of ChemSpaceElement.
+	 * @returns {Object}
+	 */
+	getChildHolder: function()
+	{
+		return this;
+	},
+	/**
+	 * This method related to getChildCount/getChildAt/indexOfChild.
+	 * A chem object may have several child lists (e.g., molecule has nodes and connectors),
+	 * when counting on children, all those child lists should be considered.
+	 * Each subgroup should has corresponding getXXXXCount/getXXXXAt/indexOfXXXX/removeXXXX/removeXXXXAt/insertXXXXBefore/insertXXXXAt methods.
+	 * For instance, for StructureFragment.getChildSubgroups returns ['node', 'connector'],
+	 * then StructureFragment.getChildCount() === StructureFragment.getNodeCount() + StructureFragment.getConnectorCount()
+	 * @returns {Array}
+	 * @private
+	 */
+	getChildSubgroupNames: function()
+	{
+		return [];
+	},
+	/**
+	 * Returns the child subgroup that obj belongs.
+	 * @param {Object} obj
+	 * @returns {String}
+	 * @private
+	 */
+	getBelongChildSubGroupName: function(obj)
+	{
+		/*
+		var subgroups = this.getChildSubgroupNames();
+		if (subgroups.length === 1)
+			return subgroups[1];
+		*/
+		return null;
+	},
+	/** @private */
+	_getPrevSubgroupChildrenCount: function(subgroupName)
+	{
+		var subgroups = this.getChildSubgroupNames();
+		var prevCount = 0;
+		for (var i = 0, l = subgroups.length; i < l; ++i)
+		{
+			if (subgroups[i] === subgroupName)
+				return prevCount;
+			else
+			{
+				var countMethod = this._getSubGroupChildCountMethod(subgroups[i]);
+				var subCount = (countMethod && countMethod.apply(this)) || 0;
+				prevCount += subCount;
+			}
+		}
+		// subgroupName not in actual sub groups
+		return prevCount;
+	},
+	/** @private */
+	_getSubgroupChildIndexInfoFromChildIndex: function(index)
+	{
+		var subgroups = this.getChildSubgroupNames();
+		var prevCount = 0;
+		for (var i = 0, l = subgroups.length; i < l; ++i)
+		{
+			var countMethod = this._getSubGroupChildCountMethod(subgroups[i]);
+			var subCount = (countMethod && countMethod.apply(this)) || 0;
+			if (index < prevCount + subCount)
+			{
+				return {'name': subgroups[i], 'index': index - prevCount};
+			}
+			prevCount += subCount;
+		}
+		return null;
+	},
+	/** @private */
+	_getSubGroupChildCountMethod: function(subgroupName)
+	{
+		var name = 'get' + subgroupName.upperFirst() + 'Count';
+		return this[name];
+	},
+	/** @private */
+	_getSubGroupChildAtMethod: function(subgroupName)
+	{
+		var name = 'get' + subgroupName.upperFirst() + 'At';
+		return this[name];
+	},
+	/** @private */
+	_getSubGroupChildIndexOfMethod: function(subgroupName)
+	{
+		var name = 'indexOf' + subgroupName.upperFirst();
+		return this[name];
+	},
+	/** @private */
+	_getSubGroupChildRemoveMethod: function(subgroupName)
+	{
+		var name = 'remove' + subgroupName.upperFirst();
+		return this[name];
+	},
+	/** @private */
+	_getSubGroupChildRemoveAtMethod: function(subgroupName)
+	{
+		var name = 'remove' + subgroupName.upperFirst() + 'At';
+		return this[name];
 	},
 
 	/**
@@ -4328,6 +4798,15 @@ Kekule.ChemObjList = Class.create(Kekule.ChemObject,
 	 * @param {Int} index
 	 * @returns {Variant} Child object removed.
 	 */
+	removeItemAt: function(index)
+	{
+		return this.removeAt(index);
+	},
+	/*
+	 * Remove a child at index.
+	 * @param {Int} index
+	 * @returns {Variant} Child object removed.
+	 */
 	/*
 	removeChildAt: function(index)
 	{
@@ -5367,7 +5846,187 @@ Kekule.ObjRefRelationManager = Class.create(ObjectEx,
 			}
 			return false;
 		}
-	});
+	});	/**
+	* A manager class of object reference relations (1:1 or 1:n) between chem object (srcObj.prop = destObjOrObjs).
+	* Used internally, user should not use this class directly.
+	* @class
+	* @augments ObjectEx
+	* @param {Kekule.ChemSpace} owner Owner of all containing relations.
+	*
+	* @property {Kekule.ChemSpace} owner Owner of all containing relations.
+	*
+	* @ignore
+	*/
+   Kekule.ObjRefRelationManager = Class.create(ObjectEx,
+	   /** @lends Kekule.ObjRefRelationManager# */
+	   {
+		   /** @private */
+		   CLASS_NAME: 'Kekule.ObjRefRelationManager',
+		   /** @constructs */
+		   initialize: function($super, owner)
+		   {
+			   $super();
+			   this.setOwner(owner);
+			   this.setPropStoreFieldValue('relations', []);
+		   },
+		   /** @private */
+		   initProperties: function()
+		   {
+			   this.defineProp('owner', {'dataType': 'Kekule.ChemObject', 'serializable': false});
+			   this.defineProp('relations', {'dataType': DataType.ARRAY, 'serializable': false, 'setter': null});
+		   },
+	   
+		   /**
+			* Create a new relation.
+			* @param {Kekule.ChemObject} srcObj
+			* @param {Object} srcProp
+			* @param {Variant} destObjOrObjs An object or array of objects.
+			* @return {Object}
+			*/
+		   createRelation: function(srcObj, srcProp, destObjOrObjs)
+		   {
+			   var result = {'srcObj': srcObj, 'srcProp': srcProp, 'dest': destObjOrObjs};
+			   this.getRelations().push(result);
+			   return result;
+		   },
+		   /**
+			* Modify an existing relation. If it not exists, a new one will be created.
+			* @param {Kekule.ChemObject} srcObj
+			* @param {Object} srcProp
+			* @param {Variant} destObjOrObjs An object or array of objects.
+			* @return {Object}
+			*/
+		   modifyRelation: function(srcObj, srcProp, destObjOrObjs)
+		   {
+			   var isRelease = (!destObjOrObjs || (Kekule.ArrayUtils.isArray(destObjOrObjs) && !destObjOrObjs.length));
+			   var rel = this.getRelation(srcObj, srcProp);
+			   if (!isRelease)
+			   {
+				   if (!rel)
+					   rel = this.createRelation(srcObj, srcProp, destObjOrObjs);
+				   else
+					   rel.dest = destObjOrObjs;
+				   return rel;
+			   }
+			   else
+			   {
+				   if (rel)
+					   this.removeRelation(rel);
+				   return null;
+			   }
+		   },
+		   /**
+			* Find a relation.
+			* @param {Kekule.ChemObject} srcObj
+			* @param {Object} srcProp
+			*/
+		   getRelationIndex: function(srcObj, srcProp)
+		   {
+			   var relations = this.getRelations();
+			   for (var i = 0, l = relations.length; i < l; ++i)
+			   {
+				   var rel = relations[i];
+				   if (rel.srcObj === srcObj && rel.srcProp === srcProp)
+					   return i;
+			   }
+			   return -1;
+		   },
+		   /**
+			* Find a relation.
+			* @param {Kekule.ChemObject} srcObj
+			* @param {Object} srcProp
+			*/
+		   getRelation: function(srcObj, srcProp)
+		   {
+			   var relations = this.getRelations();
+			   var index = this.getRelationIndex(srcObj, srcProp);
+			   if (index >= 0)
+				   return relations[index];
+			   else
+				   return null;
+		   },
+		   /**
+			* Remove a relation.
+			* @param {Kekule.ChemObject} srcObj
+			* @param {Object} srcProp
+			*/
+		   releaseRelation: function(srcObj, srcProp)
+		   {
+			   var relations = this.getRelations();
+			   var index = this.getRelationIndex(srcObj, srcProp);
+			   if (index >= 0)
+				   relations.splice(index, 1);
+		   },
+		   /**
+			* Remove a relation.
+			* @param {Object} relation
+			*/
+		   removeRelation: function(relation)
+		   {
+			   var relations = this.getRelations();
+			   var index = relations.indexOf(relation);
+			   if (index >= 0)
+				   relations.splice(index, 1);
+		   },
+	   
+		   /**
+			* Find all relations meeting conditions.
+			* @param {Hash} conditions
+			* @param {Hash} options
+			* @returns {Array}
+			*/
+		   findRelations: function(conditions, options)
+		   {
+			   //var ops = Object.create(options || null);
+			   var ops = options || {};
+			   var result = [];
+			   var testConditions = Object.extend({}, conditions);
+			   var checkDest = false;
+			   var conditionDest;
+			   if (testConditions.dest)  // dest should be handled alone
+			   {
+				   delete testConditions.dest;
+				   checkDest = true;
+				   conditionDest = Kekule.ArrayUtils.toArray(conditions.dest);
+			   }
+	   
+			   var relations = this.getRelations();
+			   for (var i = 0, l = relations.length; i < l; ++i)
+			   {
+				   var rel = relations[i];
+				   var passed = false;
+				   passed = Kekule.ObjUtils.match(rel, testConditions);
+				   if (passed && checkDest)
+				   {
+					   var relDest = Kekule.ArrayUtils.toArray(rel.dest);
+					   if (ops.checkDestChildren)
+					   {
+						   passed = this._hasChildOrSelfOfParents(relDest, conditionDest);
+					   }
+					   else
+						   passed = Kekule.ArrayUtils.intersect(relDest, conditionDest).length === conditionDest.length;
+				   }
+				   if (passed)
+					   result.push(rel);
+			   }
+			   return result;
+		   },
+		   /** @private */
+		   _hasChildOrSelfOfParents: function(objs, parents)
+		   {
+			   for (var i = 0, ii = objs.length; i < ii; ++i)
+			   {
+				   var obj = objs[i];
+				   for (var j = 0, jj = parents.length; j < jj; ++j)
+				   {
+					   var parent = parents[j];
+					   if (obj === parent || (obj.isChildOf && obj.isChildOf(parent)))
+						   return true;
+				   }
+			   }
+			   return false;
+		   }
+	   });
 
 return Kekule;
 };

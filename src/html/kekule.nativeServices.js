@@ -20,6 +20,13 @@ if (typeof(window) === "undefined") // window not defined, may be not a browser 
 	hasWindow = false;
 }
 
+var hasWindow = true;
+if (typeof(window) === "undefined") // window not defined, may be not a browser environment (node.js env instead)
+{
+	// TODO: may add node.js implementation later
+	hasWindow = false;
+}
+
 /**
  * The class to call native services (e.g., open file picker dialog).
  * @object
