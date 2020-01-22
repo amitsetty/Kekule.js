@@ -57,6 +57,7 @@ Kekule.ChemWidget.HtmlClassNames = Object.extend(Kekule.ChemWidget.HtmlClassName
 
 	DIALOG_CHOOSE_FILE_FORAMT: 'K-Chem-Dialog-Choose-File-Format',
 	DIALOG_CHOOSE_FILE_FORAMT_FORMATBOX: 'K-Chem-Dialog-Choose-File-Format-FormatBox',
+	DIALOG_CHOOSE_FILE_FORAMT_PREVIEWER_REGION: 'K-Chem-Dialog-Choose-File-Format-PreviewerRegion',
 	DIALOG_CHOOSE_FILE_FORAMT_PREVIEWER: 'K-Chem-Dialog-Choose-File-Format-Previewer'
 });
 
@@ -170,6 +171,14 @@ Kekule.ChemWidget.ChemObjDisplayer = Class.create(Kekule.ChemWidget.AbstractWidg
 	doFinalize: function($super)
 	{
 		//this.setChemObj(null);
+
+		/*
+		var r = this.getPropStoreFieldValue('boundInfoRecorder');
+		if (r)
+			r.finalize();
+		this.setPropStoreFieldValue('boundInfoRecorder', null);
+		*/
+
 		this.setPropStoreFieldValue('chemObj', null);
 		this.getPainter().finalize();
 		var b = this.getPropStoreFieldValue('drawBridge');
@@ -435,11 +444,21 @@ Kekule.ChemWidget.ChemObjDisplayer = Class.create(Kekule.ChemWidget.AbstractWidg
 				return p? p.getRenderer(): null;
 			}
 		});
+		// private object to record all bound infos
+		this.defineProp('boundInfoRecorder', {'dataType': 'Kekule.Render.BoundInfoRecorder', 'serializable': false, 'setter': null,
+			'getter': function() { var p = this.getRootRenderer(); return p && p.getBoundInfoRecorder(); }
+		});
 	},
+	/** @ignore */
 	initPropValues: function($super)
 	{
 		$super();
-		this.setStandardizationOptions({'unmarshalSubFragments': false});
+		this.setStandardizationOptions({'unmarshalSubFragments': false, 'clearHydrogens': false});    // do not auto clear explicit H
+	},
+	/** @ignore */
+	elementBound: function(element)
+	{
+		this.setObserveElemResize(true);
 	},
 
 	/** @ignore */
@@ -743,8 +762,22 @@ Kekule.ChemWidget.ChemObjDisplayer = Class.create(Kekule.ChemWidget.AbstractWidg
 		}
 		var result = new Kekule.Render.ChemObjPainter(this.getRenderType(), chemObj, this.getDrawBridge());
 		this.setPropStoreFieldValue('painter', result);
+		// create new bound info recorder
+		//this.createNewBoundInfoRecorder(result);
 		return result;
 	},
+	/* @private */
+	/*
+	createNewBoundInfoRecorder: function(renderer)
+	{
+		var old = this.getPropStoreFieldValue('boundInfoRecorder');
+		if (old)
+			old.finalize();
+		var recorder = new Kekule.Render.BoundInfoRecorder(renderer);
+		//recorder.setTargetContext(this.getObjContext());
+		this.setPropStoreFieldValue('boundInfoRecorder', recorder);
+	},
+	*/
 
 	/**
 	 * Called when chemObj property has been changed.
@@ -1717,10 +1750,19 @@ Kekule.ChemWidget.ActionDisplayerLoadData = Class.create(Kekule.ChemWidget.Actio
 					var displayer = self.getDisplayer();
 					displayer.loadFromData(data, mimeType);
 					*/
+					/*
 					var displayer = self.getDisplayer();
 					displayer.load(dialog.getChemObj());
+					*/
+					self.doLoadToDisplayer(dialog.getChemObj(), dialog);
 				}
 			}, target, showType]);
+	},
+	/** @private */
+	doLoadToDisplayer: function(chemObj, dialog)
+	{
+		var displayer = this.getDisplayer();
+		displayer.load(chemObj);
 	}
 });
 
@@ -1820,10 +1862,11 @@ Kekule.ChemWidget.ActionDisplayerSaveFile = Class.create(Kekule.ChemWidget.Actio
 		result.getClientElem().appendChild(elem);
 		// preview textarea
 		elem = doc.createElement('div');
+		elem.className = CCNS.DIALOG_CHOOSE_FILE_FORAMT_PREVIEWER_REGION;
 		result.getClientElem().appendChild(elem);
 		var previewTextArea = new Kekule.Widget.TextEditor(result); //new Kekule.Widget.TextArea(result);
 		previewTextArea.setReadOnly(true);
-		previewTextArea.setWrap('off');
+		previewTextArea.setWrap('off').setAutoWrapThreshold(true);
 		previewTextArea.setToolbarPos(Kekule.Widget.Position.BOTTOM);
 		previewTextArea.addClassName(CCNS.DIALOG_CHOOSE_FILE_FORAMT_PREVIEWER);
 		previewTextArea.appendToElem(elem);

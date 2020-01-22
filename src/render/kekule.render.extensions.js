@@ -811,6 +811,12 @@
 			return result;
 		},
 
+		/** @ignore */
+		getAbsCoordOfMode: function(coordMode, allowCoordBorrow)
+		{
+			return this.getAbsBaseCoord(coordMode, allowCoordBorrow);
+		},
+
 		/**
 		 * Returns only connected objects exposed to renderer.
 		 * @returns {Array}
@@ -869,6 +875,25 @@
 			return this.getLength(Kekule.CoordMode.COORD3D, allowCoordBorrow);
 		}
 	});
+
+	ClassEx.defineProps(Kekule.BaseStructureConnector, [
+		{
+			'name': 'absCoord2D',
+			'dataType': DataType.HASH,
+			'serializable': false,
+			'getter': function(allowCoordBorrow) {
+				return this.getAbsBaseCoord(Kekule.CoordMode.COORD2D, allowCoordBorrow);
+			}
+		},
+		{
+			'name': 'absCoord3D',
+			'dataType': DataType.HASH,
+			'serializable': false,
+			'getter': function(allowCoordBorrow) {
+				return this.getAbsBaseCoord(Kekule.CoordMode.COORD3D, allowCoordBorrow);
+			}
+		}
+	]);
 
 	ClassEx.extend(Kekule.ChemStructureConnector,
 	/** @lends Kekule.ChemStructureConnector# */
@@ -1036,7 +1061,7 @@
 		getDisplayRichText: function($super, hydrogenDisplayLevel, showCharge, displayLabelConfigs, partialChargeDecimalsLength, chargeMarkType, distinguishSingletAndTripletRadical)
 		{
 			var R = Kekule.Render;
-			if (!hydrogenDisplayLevel)
+			if (Kekule.ObjUtils.isUnset(hydrogenDisplayLevel))
 				hydrogenDisplayLevel = R.HydrogenDisplayLevel.DEFAULT;
 			/*
 			//var result = this.getCoreDisplayRichText() || R.RichTextUtils.create();

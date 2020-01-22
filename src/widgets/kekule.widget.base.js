@@ -48,6 +48,8 @@ Kekule.Widget.HtmlClassNames = {
 	DYN_CREATED: 'K-Dynamic-Created',
 	/* A top most layer. */
 	/*TOP_LAYER: 'K-Top-Layer',*/
+	/** An isolated layer */
+	ISOLATED_LAYER: 'K-Isolated-Layer',
 	NORMAL_BACKGROUND: 'K-Normal-Background',
 	/** Indicate text in widget can not be selected. */
 	NONSELECTABLE: 'K-NonSelectable',
@@ -225,7 +227,7 @@ Kekule.Widget.DragDrop = {
  * @ignore
  */
 Kekule.Widget.UiEvents = [
-	/*'blur', 'focus',*/ 'click', 'dblclick', 'mousedown',/*'mouseenter', 'mouseleave',*/ 'mousemove', 'mouseout', 'mouseover', 'mouseup', 'mousewheel',
+	/*'blur', 'focus',*/ 'click', 'dblclick', 'mousedown',/*'mouseenter', 'mouseleave',*/ 'mousemove', 'mouseout', 'mouseover', 'mouseup', //'mousewheel',
 	'keydown', 'keyup', 'keypress',
 	'touchstart', 'touchend', 'touchcancel', 'touchmove',
 	'pointerdown', 'pointermove', 'pointerout', 'pointerover', 'pointerup',
@@ -236,7 +238,7 @@ Kekule.Widget.UiEvents = [
  * @ignore
  */
 Kekule.Widget.UiLocalEvents = [
-	'blur', 'focus', 'mouseenter', 'mouseleave', 'pointerenter', 'pointerleave'
+	'blur', 'focus', 'mouseenter', 'mouseleave', 'mousewheel', 'pointerenter', 'pointerleave'
 ];
 
 /**
@@ -341,6 +343,7 @@ var widgetBindingField = '__$kekule_widget__';
  * @property {Hash} autoResizeConstraints A hash of {width, height}, each value from 0-1 indicating the ratio of widget width/height to client.
  *   If this property is set, widget will automatically adjust its size when the browser window is resized.
  * @property {Bool} autoAdjustSizeOnPopup Whether shrink to browser visible client size when popping up or dropping down.
+ * @property {Bool} observeElemResize Whether use a resize observer to detect the resizing of element and evoke the resized method in supported browser.
  * @property {Bool} isPopup Whether this is a "popup" widget, when click elsewhere on window, the widget will automatically hide itself.
  * @property {Bool} isDialog Whether this is a "dialog" widget, when press ESC key, the widget will automatically hide itself.
  * @property {Kekule.HashEx} iaControllerMap Interaction controller map (id= > controller) linked to this component. Read only.
@@ -968,6 +971,9 @@ Kekule.Widget.BaseWidget = Class.create(ObjectEx,
 				// if not hover, the active state should also be turned off
 				if (!value && !this.isCaptureMouse())
 					this.setPropStoreFieldValue('isActive', false);
+				var m = this.getGlobalManager();
+				if (m)
+					m.notifyWidgetHoverChanged(this, value);
 				this.stateChanged();
 			}
 		});
@@ -1029,6 +1035,28 @@ Kekule.Widget.BaseWidget = Class.create(ObjectEx,
 				}
 				else
 					gm.unregisterAutoResizeWidget(this);
+			}
+		});
+
+		this.defineProp('observeElemResize', {'dataType': DataType.BOOL,
+			'getter': function()
+			{
+				return this.getPropStoreFieldValue('observeElemResize') && Kekule.BrowserFeature.resizeObserver;
+			},
+			'setter': function(value)
+			{
+				if (this.getPropStoreFieldValue('observeElemResize') != (!!value))
+				{
+					this.setPropStoreFieldValue('observeElemResize', !!value);
+					if (value)
+					{
+						this._installElemResizeObserver();
+					}
+					else
+					{
+						this._uninstallElemResizeObserver();
+					}
+				}
 			}
 		});
 
@@ -1113,6 +1141,13 @@ Kekule.Widget.BaseWidget = Class.create(ObjectEx,
 	/** @private */
 	doFinalize: function($super)
 	{
+		if (this._elemResizeObserver)
+		{
+			if (this._elemResizeObserver.disconnect)
+				this._elemResizeObserver.disconnect();
+			this._elemResizeObserver = null;
+		}
+
 		this.setAction(null);
 		this.setParent(null);
 		this.releaseChildWidgets();
@@ -2194,7 +2229,10 @@ Kekule.Widget.BaseWidget = Class.create(ObjectEx,
 			doResize = true;
 		}
 		if (doResize && (!suppressResize))
-			this.resized();
+		{
+			if (!this.getObserveElemResize())  // if installed elem resize observer, the change of width/height will automatically evoke resized method
+				this.resized();
+		}
 		this.objectChange(['width', 'height']);
 		return this;
 	},
@@ -2246,8 +2284,19 @@ Kekule.Widget.BaseWidget = Class.create(ObjectEx,
 	 */
 	resized: function()
 	{
-		this.doResize();
-		this.invokeEvent('resize', {'widget': this});
+		if (!this._isResizing)
+		{
+			this._isResizing = true;
+			try
+			{
+				this.doResize();
+				this.invokeEvent('resize', {'widget': this});
+			}
+			finally
+			{
+				this._isResizing = false;
+			}
+		}
 	},
 	/**
 	 * Called when width or height of widget changed.
@@ -2257,6 +2306,40 @@ Kekule.Widget.BaseWidget = Class.create(ObjectEx,
 	doResize: function()
 	{
 
+	},
+
+	/** @private */
+	_installElemResizeObserver: function()
+	{
+		if (Kekule.BrowserFeature.resizeObserver)
+		{
+			if (!this._elemResizeObserver)
+			{
+				var self = this;
+				this._elemResizeObserver = new ResizeObserver(function(entries) {
+					for (var i = 0, l = entries.length; i < l; ++i)
+					{
+						var entry = entries[i];
+						if (entry.target && entry.contentBoxSize && entry.target === self.getElement())
+						{
+							self.resized();
+						}
+					}
+				});
+			}
+			this._elemResizeObserver.observe(this.getElement());
+		}
+	},
+	/** @private */
+	_uninstallElemResizeObserver: function()
+	{
+		if (Kekule.BrowserFeature.resizeObserver)
+		{
+			if (this._elemResizeObserver)
+			{
+				this._elemResizeObserver.unobserve(this.getElement());
+			}
+		}
 	},
 
 	/**
@@ -2715,6 +2798,19 @@ Kekule.Widget.BaseWidget = Class.create(ObjectEx,
 			if (Kekule.DomUtils.hasAttribute(element, 'disabled'))
 				this.setEnabled(false);
 
+			var cname = this.getWidgetClassName();
+			EU.addClass(element, cname);
+			cname = this.getCustomHtmlClassName();
+			if (cname)
+				EU.addClass(element, cname);
+			if (!this.getTextSelectable())
+				EU.addClass(element, CNS.NONSELECTABLE);
+			if (this._pendingHtmlClassNames)
+			{
+				EU.addClass(element, this._pendingHtmlClassNames);
+				this._pendingHtmlClassNames = '';
+			}
+
 			// check dataset properties of element, and use them to set self's properties
 			// width/height attribute should also be regarded as property settings
 			var w = element.getAttribute('width');
@@ -2744,19 +2840,6 @@ Kekule.Widget.BaseWidget = Class.create(ObjectEx,
 				}
 			}
 
-			var cname = this.getWidgetClassName();
-			EU.addClass(element, cname);
-			cname = this.getCustomHtmlClassName();
-			if (cname)
-				EU.addClass(element, cname);
-			if (!this.getTextSelectable())
-				EU.addClass(element, CNS.NONSELECTABLE);
-			if (this._pendingHtmlClassNames)
-			{
-				EU.addClass(element, this._pendingHtmlClassNames);
-				this._pendingHtmlClassNames = '';
-			}
-
 			// ensure touch action value applied to element
 			var touchAction = this.getTouchAction();
 			if (Kekule.ObjUtils.notUnset(touchAction))
@@ -2768,6 +2851,7 @@ Kekule.Widget.BaseWidget = Class.create(ObjectEx,
 			// add a field to element to quick access widget from element itself
 			element[widgetBindingField] = this;
 
+			this.elementBound(element);
 			this.invokeEvent('bind', {'widget': this, 'element': element});
 		}
 	},
@@ -2778,6 +2862,15 @@ Kekule.Widget.BaseWidget = Class.create(ObjectEx,
 	doBindElement: function(element)
 	{
 		// do nothing here
+	},
+	/**
+	 * Called when the element binding is done.
+	 * Descendants can override this method to take some actions on bound element.
+	 * @private
+	 */
+	elementBound: function(element)
+	{
+
 	},
 	/**
 	 * Unbind current widget from a HTML element, uninstall event handlers.
@@ -2807,6 +2900,7 @@ Kekule.Widget.BaseWidget = Class.create(ObjectEx,
 
 			}
 
+			this.elementUnbound(element);
 			this.invokeEvent('unbind', {'widget': this, 'element': element});
 		}
 	},
@@ -2817,6 +2911,15 @@ Kekule.Widget.BaseWidget = Class.create(ObjectEx,
 	doUnbindElement: function(element)
 	{
 		// do nothing here
+	},
+	/**
+	 * Called when the element unbinding is done.
+	 * Descendants can override this method to take some actions on unbound element.
+	 * @private
+	 */
+	elementUnbound: function(element)
+	{
+
 	},
 
 	/** @private */
@@ -3265,7 +3368,7 @@ Kekule.Widget.BaseWidget = Class.create(ObjectEx,
 	 */
 	_supportGestureEvent: function()
 	{
-		return (typeof(Kekule.$jsRoot.Hammer) !== 'undefined') && (document && document.addEventListener);  // hammer need addEventListener to install event handlers
+		return (typeof(Kekule.$jsRoot.Hammer) !== 'undefined') && (Kekule.$jsRoot.document && Kekule.$jsRoot.document.addEventListener);  // hammer need addEventListener to install event handlers
 	},
 	/**
 	 * Start observing gesture events.
@@ -4254,7 +4357,7 @@ Kekule.Widget.Utils = {
 	getWidgetById: function(id, doc)
 	{
 		if (!doc)
-			doc = document;
+			doc = Kekule.$jsRoot.document;
 		var elem = doc.getElementById(id);
 		if (elem)
 			return Kekule.Widget.Utils.getWidgetOnElem(elem);
@@ -4497,11 +4600,13 @@ Kekule.Widget.GlobalManager = Class.create(ObjectEx,
 	CLASS_NAME: 'Kekule.Widget.GlobalManager',
 	/** @private */
 	INFO_FIELD: '__$info__',
+	/** @private */
+	ISOLATED_LAYER_FIELD: '__$isolated_layer__',
 	/** @constructs */
 	initialize: function($super, doc)
 	{
 		$super();
-		this._document = doc || document;
+		this._document = doc || Kekule.$jsRoot.document;
 		this._touchEventSeq = [];  // internal, for detecting ghost mouse event
 		this._hammertime = null;  // private
 		this.setPropStoreFieldValue('popupWidgets', []);
@@ -4564,6 +4669,7 @@ Kekule.Widget.GlobalManager = Class.create(ObjectEx,
 		this.defineProp('widgets', {'dataType': DataType.ARRAY, 'serializable': false, 'setter': null});
 		// private, record current active and focused widget
 		// at one time, only one widget can be in those states
+		this.defineProp('currHoverWidget', {'dataType': 'Kekule.Widget.BaseWidget', 'serializable': false});
 		this.defineProp('currActiveWidget', {'dataType': 'Kekule.Widget.BaseWidget', 'serializable': false});
 		this.defineProp('currFocusedWidget', {'dataType': 'Kekule.Widget.BaseWidget', 'serializable': false});
 		//this.defineProp('currHoverWidget', {'dataType': 'Kekule.Widget.BaseWidget', 'serializable': false});
@@ -4619,6 +4725,30 @@ Kekule.Widget.GlobalManager = Class.create(ObjectEx,
 			this.setCurrFocusedWidget(null);
 
 		this.invokeEvent('widgetFinalize', {'widget': widget});
+	},
+	/**
+	 * Notify that hover state of a widget is changed.
+	 * @param {Kekule.Widget.BaseWidget} widget
+	 * @param {Bool} hover
+	 * @private
+	 */
+	notifyWidgetHoverChanged: function(widget, hover)
+	{
+		var oldWidget = this.getCurrHoverWidget();
+		if (hover)
+		{
+			if (widget !== oldWidget)
+			{
+				if (oldWidget)
+					oldWidget.setIsHover(false);
+				this.setCurrHoverWidget(widget);
+			}
+		}
+		else
+		{
+			if (oldWidget === widget)
+				this.setCurrHoverWidget(null);
+		}
 	},
 	/**
 	 * Notify that active state of a widget is changed.
@@ -5529,7 +5659,9 @@ Kekule.Widget.GlobalManager = Class.create(ObjectEx,
 
 		if (autoAdjustSize && posInfo)  // check if need to adjust size of widget
 		{
-			var viewPortVisibleBox = Kekule.DocumentUtils.getClientVisibleBox((invokerWidget || popupWidget).getDocument());
+			var baseWidgetOrElem = invokerWidget || popupWidget;
+			var doc = baseWidgetOrElem.getDocument? baseWidgetOrElem.getDocument(): baseWidgetOrElem.ownerDocument;
+			var viewPortVisibleBox = Kekule.DocumentUtils.getClientVisibleBox(doc);
 			var visibleWidth = viewPortVisibleBox.right - viewPortVisibleBox.left;
 			var visibleHeight = viewPortVisibleBox.bottom - viewPortVisibleBox.top;
 			var widgetBox = posInfo.rect;
@@ -5635,11 +5767,14 @@ Kekule.Widget.GlobalManager = Class.create(ObjectEx,
 		dropElem.style.visible = 'hidden';
 		dropElem.style.display = '';
 		var manualAppended = false;
-		var topmostLayer = this.getTopmostLayer(dropElem.ownerDocument);
-		if (!dropElem.parentNode)
+		//var topmostLayer = this.getTopmostLayer(dropElem.ownerDocument);
+		var isolatedLayer = this.getIsolatedLayer(dropElem.ownerDocument, true);
+		//if (!dropElem.parentNode)
 		{
-			//invokerElem.appendChild(dropElem);  // IMPORTANT: must append to invoker, otherwise style may be different
-			topmostLayer.appendChild(dropElem);
+			//invokerElem.appendChild(dropElem);
+			//topmostLayer.appendChild(dropElem);
+			// move drop elem to an isolated layer first, avoid other CSS styles (e.g. flex) affect the dimension calculation
+			isolatedLayer.appendChild(dropElem);
 			manualAppended = true;
 		}
 
@@ -5654,8 +5789,11 @@ Kekule.Widget.GlobalManager = Class.create(ObjectEx,
 
 		// then remove from DOM tree
 		if (manualAppended)
+		{
 			//invokerElem.removeChild(dropElem);
-			topmostLayer.removeChild(dropElem);
+			//topmostLayer.removeChild(dropElem);
+			isolatedLayer.removeChild(dropElem);
+		}
 
 		//if (layout)
 		if (!pos || pos === D.AUTO)  // decide drop pos
@@ -6128,6 +6266,30 @@ Kekule.Widget.GlobalManager = Class.create(ObjectEx,
 		return div;
 	},
 	*/
+	/**
+	 * Get isolated layer previous created in document.
+	 * @param {HTMLDocument} doc
+	 * @returns {HTMLElement}
+	 * @private
+	 */
+	getIsolatedLayer: function(doc, canCreate)
+	{
+		var result = doc[this.ISOLATED_LAYER_FIELD];
+		if (!result && canCreate)
+		{
+			result = this._createIsolatedLayer(doc);
+			doc[this.ISOLATED_LAYER_FIELD] = result;
+		}
+		return result;
+	},
+	/** @private */
+	_createIsolatedLayer: function(doc)
+	{
+		var div = doc.createElement('div');
+		div.className = CNS.ISOLATED_LAYER;
+		doc.body.appendChild(div);
+		return div;
+	},
 
 	/** @private */
 	_getElemStoredInfo: function(elem)

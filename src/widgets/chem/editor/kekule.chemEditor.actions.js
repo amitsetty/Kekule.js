@@ -103,7 +103,16 @@ Object.extend(Kekule.ChemWidget.ComponentWidgetNames, {
 	glyphRepOpenArrowArc: 'repOpenArrowArc',
 	glyphRepSingleSideOpenArrowArc: 'repSingleSideOpenArrowArc',
 	glyphRepHeatSymbol: 'repHeatSymbol',
-	glyphRepAddSymbol: 'repAddSymbol'
+	glyphRepAddSymbol: 'repAddSymbol',
+	glyphElectronPushingArrow: 'repElectronPushingArrow',
+	glyphElectronPushingArrowDouble: 'repElectronPushingArrowDouble',
+	glyphElectronPushingArrowSingle: 'repElectronPushingArrowSingle',
+	glyphElectronPushingArrowBondForming: 'repElectronPushingArrowBondForming',
+	glyphRepSegment: 'repGlyphSegment',
+	glyphReactionArrowNormal: 'repGlyphReactionArrowNormal',
+	glyphReactionArrowReversible: 'glyphReactionArrowReversible',
+	glyphReactionArrowResonance: 'glyphReactionArrowResonance',
+	glyphReactionArrowRetrosynthesis: 'glyphReactionArrowRetrosynthesis'
 });
 
 /**
@@ -111,46 +120,116 @@ Object.extend(Kekule.ChemWidget.ComponentWidgetNames, {
  * @class
  */
 Kekule.Editor.ActionOperUtils = {
+	/** @private */
+	getObjsCenterScreenCoord: function(editor, objects)
+	{
+		var BU = Kekule.BoxUtils;
+		var CU = Kekule.CoordUtils;
+		var containerBox = null;
+		for (var i = 0, l = objects.length; i < l; ++i)
+		{
+			var box = Kekule.Render.ObjUtils.getContainerBox(objects[i], editor.getCoordMode(), editor.getAllowCoordBorrow());
+			if (!containerBox)
+				containerBox = box;
+			else
+				containerBox = BU.getContainerBox(box, containerBox);
+		}
+		//var centerCoord = BU.getCenterCoord(containerBox);
+		var coords = BU.getMinMaxCoords(containerBox);
+		var screenCoords = {
+			'min': editor.objCoordToScreen(coords.min),
+			'max': editor.objCoordToScreen(coords.max)
+		};
+		var result = CU.add(screenCoords.min, screenCoords.max);
+		var result = CU.divide(result, 2);
+		//return editor.objCoordToScreen(centerCoord);
+		return result;
+	},
 	/**
 	 * Add standalone objects to a chem space editor, with operation support.
 	 * @param {Kekule.Editor.ChemSpaceEditor} editor
 	 * @param {Array} objs
-	 * @param {Hash} coordOffset Coords of new added objects will be added with this value.
+	 * @param {Hash} options May including fields:
+	 *   {
+	 *     screenCoordOffset: Coords of new added objects will be added with this value.
+	 *     autoAdjustPosition: Whether the newly added object will be put at the center of editor screen.
+	 *       This option takes no effect when screenCoordOffset is true.
+	 *     autoSelect: Whether automatically select the newly added objects.
+	 *   }
 	 */
-	addObjectsToChemSpaceEditor: function(editor, objs, coordOffset)
+	addObjectsToChemSpaceEditor: function(editor, objs, options)
 	{
+		var ops = Object.extend({autoAdjustPosition: true}, options);  // default options
+		var _getAppendableObjs = function(srcObj, rootSpace)
+		{
+			var result = [];
+			var rootObj = rootSpace;
+			if (rootObj && srcObj)
+			{
+				if (srcObj.getClass() === rootObj.getClass() || srcObj instanceof Kekule.ChemSpace)  // class is same (chemspace)
+				{
+					result = AU.clone(srcObj.getChildren());
+				}
+				else
+					result = [srcObj];
+			}
+			return result;
+		};
 		var chemSpace = editor.getChemSpace && editor.getChemSpace();
 		if (editor && chemSpace && editor.canAddNewStandaloneObject && editor.canAddNewStandaloneObject())
 		{
-			editor.beginUpdateObject();
+			var actualObjs = [];
+			for (var i = 0, l = objs.length; i < l; ++i)
+			{
+				var appendableObjs = _getAppendableObjs(objs[i], chemSpace);
+				if (appendableObjs && appendableObjs.length)
+					AU.pushUnique(actualObjs, appendableObjs);
+			}
+			//editor.beginUpdateObject();
+			editor.beginManipulateAndUpdateObject();
 			try
 			{
 				var marcoOper = new Kekule.MacroOperation();
-				for (var i = 0, l = objs.length; i < l; ++i)
+				for (var i = 0, l = actualObjs.length; i < l; ++i)
 				{
-					var obj = objs[i];
-					var oper = new Kekule.ChemObjOperation.Add(objs[i], chemSpace, null, editor);
+					var obj = actualObjs[i];
+					var oper = new Kekule.ChemObjOperation.Add(obj, chemSpace, null, editor);
 					marcoOper.add(oper);
 				}
 				marcoOper.execute();
 
-				if (coordOffset)
+				var screenCoordOffset = ops.screenCoordOffset;
+				if (!screenCoordOffset && ops.autoAdjustPosition)  // auto adjust position
 				{
-					for (var i = 0, l = objs.length; i < l; ++i)
+					//var originCenterCoord = this.getObjsCenterScreenCoord(editor, originalSelectedObjs);
+					var editorClientRect = editor.getClientVisibleRect();
+					var editorCenterScreenCoord = {
+						'x': editorClientRect.left + editorClientRect.width / 2,
+						'y': editorClientRect.top + editorClientRect.height / 2
+					};
+					var targetCenterCoord = this.getObjsCenterScreenCoord(editor, actualObjs);
+					var deltaCoord = Kekule.CoordUtils.substract(editorCenterScreenCoord, targetCenterCoord);
+					screenCoordOffset = deltaCoord;
+				}
+				if (screenCoordOffset)
+				{
+					for (var i = 0, l = actualObjs.length; i < l; ++i)
 					{
-						var obj = objs[i];
+						var obj = actualObjs[i];
 						var coord = editor.getObjectScreenCoord(obj);
-						var newCoord = Kekule.CoordUtils.add(coord, coordOffset);
+						var newCoord = Kekule.CoordUtils.add(coord, screenCoordOffset);
 						editor.setObjectScreenCoord(obj, newCoord);
 					}
 				}
 
 				editor.pushOperation(marcoOper);
-				editor.select(objs);
+				if (ops.autoSelect)
+					editor.select(actualObjs);
 			}
 			finally
 			{
-				editor.endUpdateObject();
+				//editor.endUpdateObject();
+				editor.endManipulateAndUpdateObject();
 			}
 		}
 	}
@@ -232,7 +311,7 @@ Kekule.Editor.ActionEditorUndo = Class.create(Kekule.Editor.ActionOnEditor,
 	{
 		$super();
 		if (this.getEnabled())
-			this.setEnabled(this.getEditor().canUndo());
+			this.setEnabled(this.getEditor().getEnableOperHistory() && this.getEditor().canUndo());
 	},
 	/** @private */
 	doExecute: function()
@@ -266,7 +345,7 @@ Kekule.Editor.ActionEditorRedo = Class.create(Kekule.Editor.ActionOnEditor,
 	{
 		$super();
 		if (this.getEnabled())
-			this.setEnabled(this.getEditor().canRedo());
+			this.setEnabled(this.getEditor().getEnableOperHistory() && this.getEditor().canRedo());
 	},
 	/** @private */
 	doExecute: function()
@@ -312,6 +391,125 @@ Kekule.Editor.ActionEditorNewDoc = Class.create(Kekule.Editor.ActionOnEditor,
 });
 
 /**
+ * Action for loading or appending new data into editor.
+ * @class
+ * @augments Kekule.ChemWidget.ActionDisplayerLoadData
+ *
+ * @property {Bool} enableAppend Whether appending data into editor is enabled.
+ */
+Kekule.Editor.ActionEditorLoadData = Class.create(Kekule.ChemWidget.ActionDisplayerLoadData,
+/** @lends Kekule.Editor.ActionEditorLoadData# */
+{
+	/** @private */
+	CLASS_NAME: 'Kekule.Editor.ActionEditorLoadData',
+	/* @private */
+	// HTML_CLASSNAME: CCNS.ACTION_LOADFILE,
+	/** @constructs */
+	initialize: function($super, editor)
+	{
+		$super(editor);
+	},
+	/** @private */
+	initProperties: function()
+	{
+		this.defineProp('enableAppend', {'dataType': DataType.BOOL});
+	},
+	/** @private */
+	doExecute: function($super, target)
+	{
+		var dialog = this.getDataDialog();
+		if (dialog && dialog.setDisplayAppendCheckBox)
+			dialog.setDisplayAppendCheckBox(this._isEditorRootObjAppendable() && !this._isEditorEmpty());
+		return $super(target);
+	},
+	/** @private */
+	_getEditorRootObj: function()
+	{
+		var editor = this.getDisplayer();
+		var rootObj = editor.getChemObj();
+		return rootObj;
+	},
+	/** @private */
+	_isEditorRootObjAppendable: function()
+	{
+		// check if the root object of editor can append child
+		var editor = this.getDisplayer();
+		var rootObj = this._getEditorRootObj();
+		return rootObj && (rootObj instanceof Kekule.ChemSpace) && (editor.canAddNewStandaloneObject && editor.canAddNewStandaloneObject())
+			&& (editor.getAllowAppendDataToCurr && editor.getAllowAppendDataToCurr());
+	},
+	/** @private */
+	_isEditorEmpty: function()
+	{
+		var rootObj = this._getEditorRootObj();
+		return (!rootObj || (rootObj.getChildCount && rootObj.getChildCount() === 0));
+	},
+	/* @private */
+	/*
+	_getAppendableObjs: function(srcObj)
+	{
+		var result = [];
+		var rootObj = this._getEditorRootObj();
+		if (rootObj && srcObj)
+		{
+			if (srcObj.getClass() === rootObj.getClass() || srcObj instanceof Kekule.ChemSpace)  // class is same (chemspace)
+			{
+				result = AU.clone(srcObj.getChildren());
+			}
+			else
+				result = [srcObj];
+		}
+		return result;
+	},
+	*/
+	/** @private */
+	createDataDialog: function()
+	{
+		var doc = this.getDisplayer().getDocument();
+		var result = new Kekule.ChemWidget.LoadOrAppendDataDialog(doc);
+		return result;
+	},
+	/** @ignore */
+	doLoadToDisplayer: function($super, chemObj, dialog)
+	{
+		var editor = this.getDisplayer();
+		var isAppending = dialog.getIsAppending();
+		//console.log('is appending', isAppending);
+		if (isAppending && !this._isEditorEmpty() && this._isEditorRootObjAppendable())
+		{
+			editor.beginUpdateObject();
+			try
+			{
+				var rootObj = this._getEditorRootObj();
+				rootObj.beginUpdate();
+				try
+				{
+					//var appendableObjs = this._getAppendableObjs(chemObj);
+					//Kekule.Editor.ActionOperUtils.addObjectsToChemSpaceEditor(editor, appendableObjs);
+					Kekule.Editor.ActionOperUtils.addObjectsToChemSpaceEditor(editor, [chemObj], {'autoSelect': true});
+					/*
+					for (var i = 0, l = appendableObjs.length; i < l; ++i)
+					{
+						rootObj.appendChild(appendableObjs[i]);
+					}
+					*/
+				}
+				finally
+				{
+					rootObj.endUpdate();
+				}
+			}
+			finally
+			{
+				editor.endUpdateObject();
+			}
+		}
+		else
+			return $super(chemObj, dialog);
+	}
+});
+
+/**
  * A clone selection action on editor.
  * @class
  * @augments Kekule.Editor.ActionOnEditor
@@ -353,7 +551,10 @@ Kekule.Editor.ActionCloneSelection = Class.create(Kekule.Editor.ActionOnEditor,
 		{
 			var coordOffset = editor.getDefaultCloneScreenCoordOffset && editor.getDefaultCloneScreenCoordOffset();
 			var objs = editor.cloneSelection();
-			Kekule.Editor.ActionOperUtils.addObjectsToChemSpaceEditor(editor, objs, coordOffset);
+			Kekule.Editor.ActionOperUtils.addObjectsToChemSpaceEditor(editor, objs, {
+				'screenCoordOffset': coordOffset,
+				'autoSelect': true
+			});
 		}
 		/*
 		var chemSpace = editor.getChemSpace && editor.getChemSpace();
@@ -430,8 +631,20 @@ Kekule.Editor.ActionCopySelection = Class.create(Kekule.Editor.ActionOnEditor,
 		if (editor && chemSpace)
 		{
 			var objs = editor.cloneSelection();
+			/*
 			Kekule.Widget.clipboard.setObjects(Kekule.IO.MimeType.JSON, objs);
 			//console.log(Kekule.Widget.Clipboard.getData('text/json'));
+			*/
+			var space = new Kekule.IntermediateChemSpace();
+			try
+			{
+				space.appendChildren(objs);  // use a space to keep all objs, to keep the relations
+				Kekule.Widget.clipboard.setObjects(Kekule.IO.MimeType.JSON, [space]);
+			}
+			finally
+			{
+				space.finalize();
+			}
 		}
 	}
 });
@@ -469,7 +682,17 @@ Kekule.Editor.ActionCutSelection = Class.create(Kekule.Editor.ActionOnEditor,
 		if (editor && chemSpace)
 		{
 			var objs = editor.cloneSelection();
-			Kekule.Widget.clipboard.setObjects(Kekule.IO.MimeType.JSON, objs);
+			//Kekule.Widget.clipboard.setObjects(Kekule.IO.MimeType.JSON, objs);
+			var space = new Kekule.IntermediateChemSpace();
+			try
+			{
+				space.appendChildren(objs);  // use a space to keep all objs, to keep the relations
+				Kekule.Widget.clipboard.setObjects(Kekule.IO.MimeType.JSON, [space]);
+			}
+			finally
+			{
+				space.finalize();
+			}
 
 			// TODO: this is not a good approach
 			var controller = editor.getIaController('BasicMolEraserIaController');
@@ -519,6 +742,7 @@ Kekule.Editor.ActionPaste = Class.create(Kekule.Editor.ActionOnEditor,
 	/** @private */
 	getObjsCenterScreenCoord: function(editor, objects)
 	{
+		/*
 		var BU = Kekule.BoxUtils;
 		var CU = Kekule.CoordUtils;
 		var containerBox = null;
@@ -540,6 +764,8 @@ Kekule.Editor.ActionPaste = Class.create(Kekule.Editor.ActionOnEditor,
 		var result = CU.divide(result, 2);
 		//return editor.objCoordToScreen(centerCoord);
 		return result;
+		*/
+		return Kekule.Editor.ActionOperUtils.getObjsCenterScreenCoord(editor, objects);
 	},
 	/** @private */
 	doExecute: function()
@@ -547,7 +773,22 @@ Kekule.Editor.ActionPaste = Class.create(Kekule.Editor.ActionOnEditor,
 		var editor = this.getEditor();
 		if (editor && editor.getChemSpace)
 		{
-			var objs = Kekule.Widget.clipboard.getObjects(Kekule.IO.MimeType.JSON);
+			//var objs = Kekule.Widget.clipboard.getObjects(Kekule.IO.MimeType.JSON);
+			var space, objs;
+			var clipboardObjs = Kekule.Widget.clipboard.getObjects(Kekule.IO.MimeType.JSON);
+			if (clipboardObjs.length === 1 && clipboardObjs[0] instanceof Kekule.IntermediateChemSpace)
+			{
+				space = clipboardObjs[0];
+				objs = AU.clone(space.getChildren());
+
+				// remove objs from space first
+				space.removeChildren(objs);
+			}
+			else
+				objs = clipboardObjs;
+
+			if (space)
+				space.finalize();
 
 			// calc coord offset
 			var coordOffset = null;
@@ -565,7 +806,10 @@ Kekule.Editor.ActionPaste = Class.create(Kekule.Editor.ActionOnEditor,
 				}
 			}
 
-			Kekule.Editor.ActionOperUtils.addObjectsToChemSpaceEditor(editor, objs, coordOffset);
+			Kekule.Editor.ActionOperUtils.addObjectsToChemSpaceEditor(editor, objs, {
+				'screenCoordOffset': coordOffset,
+				'autoSelect': true
+			});
 		}
 		/*
 		var chemSpace = editor.getChemSpace && editor.getChemSpace();
@@ -1453,6 +1697,7 @@ Kekule.Editor.ActionComposerSetAtomAndFormulaController = Kekule.Editor.createCo
 	null,
 	[
 		Kekule.Editor.ActionComposerSetAtomController,
+		Kekule.Editor.ActionComposerSetRepositoryMethaneController,
 		Kekule.Editor.ActionComposerSetFormulaController
 	]
 	,null,
@@ -1985,7 +2230,7 @@ Kekule.Editor.ActionComposerSetRepositoryPathOpenArrowArcController = Kekule.Edi
 	'ArrowLineIaController',
 	'ArrowLineIaController-OpenArrowArc',
 	{
-		'glyphClass': Kekule.Glyph.Arc,
+		'glyphClass': Kekule.Glyph.BaseArc,
 		'glyphInitialParams': {
 			'endArrowType': Kekule.Glyph.ArrowType.OPEN,
 			'endArrowWidth': 0.25,
@@ -2005,7 +2250,7 @@ Kekule.Editor.ActionComposerSetRepositoryPathSingleSideOpenArrowArcController = 
 	'ArrowLineIaController',
 	'ArrowLineIaController-SingleSideOpenArrowArc',
 	{
-		'glyphClass': Kekule.Glyph.Arc,
+		'glyphClass': Kekule.Glyph.BaseArc,
 		'glyphInitialParams': {
 			'endArrowType': Kekule.Glyph.ArrowType.OPEN,
 			'endArrowSide': Kekule.Glyph.ArrowSide.REVERSED,
@@ -2050,6 +2295,173 @@ Kekule.Editor.ActionComposerSetRepositoryAddSymbolController = Kekule.Editor.cre
 	BNS.glyphRepAddSymbol
 );
 
+Kekule.Editor.ActionComposerSetRepositoryLineSegmentController = Kekule.Editor.createComposerIaControllerActionClass(
+	'Kekule.Editor.ActionComposerSetRepositoryLineSegmentController',
+	Kekule.$L('ChemWidgetTexts.CAPTION_REPOSITORY_GLYPH_LINE'),
+	Kekule.$L('ChemWidgetTexts.HINT_REPOSITORY_GLYPH_LINE'),
+	'ArrowLineIaController',
+	'ArrowLineIaController-Line',
+	{
+		'glyphClass': Kekule.Glyph.Segment,
+		'glyphInitialParams': {
+			'startArrowWidth': 0.25,
+			'startArrowLength': 0.25,
+			'endArrowWidth': 0.25,
+			'endArrowLength': 0.25,
+			'lineLength': 1.5,
+			'lineGap': 0.1,
+		}
+	},
+	null, null,
+	BNS.glyphRepSegment
+);
+Kekule.Editor.ActionComposerSetRepositoryNormalReactionArrowController = Kekule.Editor.createComposerIaControllerActionClass(
+	'Kekule.Editor.ActionComposerSetRepositoryNormalReactionArrowController',
+	Kekule.$L('ChemWidgetTexts.CAPTION_REACTION_ARROW_NORMAL'),
+	Kekule.$L('ChemWidgetTexts.HINT_REACTION_ARROW_NORMAL'),
+	'ArrowLineIaController',
+	'ArrowLineIaController-ReactionArrowNormal',
+	{
+		'glyphClass': Kekule.Glyph.ReactionArrow,
+		'glyphInitialParams': {
+			'reactionArrowType': Kekule.Glyph.ReactionArrowType.NORMAL,
+			'startArrowWidth': 0.25,
+			'startArrowLength': 0.25,
+			'endArrowWidth': 0.25,
+			'endArrowLength': 0.25,
+			'lineLength': 1.5,
+			'lineGap': 0.1,
+		}
+	},
+	null, null,
+	BNS.glyphReactionArrowNormal
+);
+Kekule.Editor.ActionComposerSetRepositoryReversibleReactionArrowController = Kekule.Editor.createComposerIaControllerActionClass(
+	'Kekule.Editor.ActionComposerSetRepositoryReversibleReactionArrowController',
+	Kekule.$L('ChemWidgetTexts.CAPTION_REACTION_ARROW_REVERSIBLE'),
+	Kekule.$L('ChemWidgetTexts.HINT_REACTION_ARROW_REVERSIBLE'),
+	'ArrowLineIaController',
+	'ArrowLineIaController-ReactionArrowReversible',
+	{
+		'glyphClass': Kekule.Glyph.ReactionArrow,
+		'glyphInitialParams': {
+			'reactionType': Kekule.Glyph.ReactionArrowType.REVERSIBLE,
+			'startArrowWidth': 0.25,
+			'startArrowLength': 0.25,
+			'endArrowWidth': 0.25,
+			'endArrowLength': 0.25,
+			'lineLength': 1.5,
+			'lineGap': 0.1,
+		}
+	},
+	null, null,
+	BNS.glyphReactionArrowReversible
+);
+Kekule.Editor.ActionComposerSetRepositoryResonanceReactionArrowController = Kekule.Editor.createComposerIaControllerActionClass(
+	'Kekule.Editor.ActionComposerSetRepositoryResonanceReactionArrowController',
+	Kekule.$L('ChemWidgetTexts.CAPTION_REACTION_ARROW_RESONANCE'),
+	Kekule.$L('ChemWidgetTexts.HINT_REACTION_ARROW_RESONANCE'),
+	'ArrowLineIaController',
+	'ArrowLineIaController-ReactionArrowResonance',
+	{
+		'glyphClass': Kekule.Glyph.ReactionArrow,
+		'glyphInitialParams': {
+			'reactionType': Kekule.Glyph.ReactionArrowType.RESONANCE,
+			'startArrowWidth': 0.25,
+			'startArrowLength': 0.25,
+			'endArrowWidth': 0.25,
+			'endArrowLength': 0.25,
+			'lineLength': 1.5,
+			'lineGap': 0.1,
+		}
+	},
+	null, null,
+	BNS.glyphReactionArrowResonance
+);
+Kekule.Editor.ActionComposerSetRepositoryRetrosynthesisReactionArrowController = Kekule.Editor.createComposerIaControllerActionClass(
+	'Kekule.Editor.ActionComposerSetRepositoryRetrosynthesisReactionArrowController',
+	Kekule.$L('ChemWidgetTexts.CAPTION_REACTION_ARROW_RETROSYNTHESIS'),
+	Kekule.$L('ChemWidgetTexts.HINT_REACTION_ARROW_RETROSYNTHESIS'),
+	'ArrowLineIaController',
+	'ArrowLineIaController-ReactionArrowRetrosynthesis',
+	{
+		'glyphClass': Kekule.Glyph.ReactionArrow,
+		'glyphInitialParams': {
+			'reactionType': Kekule.Glyph.ReactionArrowType.RETROSYNTHESIS,
+			'startArrowWidth': 0.25,
+			'startArrowLength': 0.25,
+			'endArrowWidth': 0.25,
+			'endArrowLength': 0.25,
+			'lineLength': 1.5,
+			'lineGap': 0.1,
+		}
+	},
+	null, null,
+	BNS.glyphReactionArrowRetrosynthesis
+);
+
+Kekule.Editor.ActionComposerSetRepositoryDoubleElectronPushingArrowController = Kekule.Editor.createComposerIaControllerActionClass(
+	'Kekule.Editor.ActionComposerSetRepositoryDoubleElectronPushingArrowController',
+	Kekule.$L('ChemWidgetTexts.CAPTION_ELECTRON_PUSHING_ARROW_2'),
+	Kekule.$L('ChemWidgetTexts.HINT_ELECTRON_PUSHING_ARROW_2'),
+	'ArrowLineIaController',
+	'ArrowLineIaController-ElectronPushingArrowDouble',
+	{
+		'glyphClass': Kekule.Glyph.ElectronPushingArrow,
+		'glyphInitialParams': {
+			'electronCount': 2,
+			'endArrowWidth': 0.25,
+			'endArrowLength': 0.25,
+			'lineLength': 1,
+			'lineGap': 0.1,
+			'lineCount': 1
+		}
+	},
+	null, null,
+	BNS.glyphElectronPushingArrowDouble
+);
+Kekule.Editor.ActionComposerSetRepositorySingleElectronPushingArrowController = Kekule.Editor.createComposerIaControllerActionClass(
+	'Kekule.Editor.ActionComposerSetRepositorySingleElectronPushingArrowController',
+	Kekule.$L('ChemWidgetTexts.CAPTION_ELECTRON_PUSHING_ARROW_1'),
+	Kekule.$L('ChemWidgetTexts.HINT_ELECTRON_PUSHING_ARROW_1'),
+	'ArrowLineIaController',
+	'ArrowLineIaController-ElectronPushingArrowSingle',
+	{
+		'glyphClass': Kekule.Glyph.ElectronPushingArrow,
+		'glyphInitialParams': {
+			'electronCount': 1,
+			'endArrowWidth': 0.25,
+			'endArrowLength': 0.25,
+			'lineLength': 1,
+			'lineGap': 0.1,
+			'lineCount': 1
+		}
+	},
+	null, null,
+	BNS.glyphElectronPushingArrowSingle
+);
+
+Kekule.Editor.ActionComposerSetRepositoryBondFormingElectronPushingArrowController = Kekule.Editor.createComposerIaControllerActionClass(
+	'Kekule.Editor.ActionComposerSetRepositoryBondFormingElectronPushingArrowController',
+	Kekule.$L('ChemWidgetTexts.CAPTION_BOND_FORMING_ELECTRON_PUSHING_ARROW_1'),
+	Kekule.$L('ChemWidgetTexts.HINT_BOND_FORMING_ELECTRON_PUSHING_ARROW_1'),
+	'ArrowLineIaController',
+	'ArrowLineIaController-BondFormingElectronPushingArrowSingle',
+	{
+		'glyphClass': Kekule.Glyph.BondFormingElectronPushingArrow,
+		'glyphInitialParams': {
+			//'electronCount': 2,
+			'endArrowWidth': 0.25,
+			'endArrowLength': 0.25,
+			'lineLength': 1,
+			'pathEndGap': 0.1,
+			'lineCount': 1
+		}
+	},
+	null, null,
+	BNS.glyphElectronPushingArrowBondForming
+);
+
 Kekule.Editor.ActionComposerSetRepositoryGlyphController = Kekule.Editor.createComposerIaControllerActionClass(
 	'Kekule.Editor.ActionComposerSetRepositoryGlyphController',
 	Kekule.$L('ChemWidgetTexts.CAPTION_REPOSITORY_ARROWLINE'), //Kekule.ChemWidgetTexts.CAPTION_REPOSITORY_ARROWLINE,
@@ -2058,6 +2470,7 @@ Kekule.Editor.ActionComposerSetRepositoryGlyphController = Kekule.Editor.createC
 	null,
 	null,
 	[
+		/*
 		Kekule.Editor.ActionComposerSetRepositoryPathOpenArrowLineController,
 		Kekule.Editor.ActionComposerSetRepositoryPathTriangleArrowLineController,
 		Kekule.Editor.ActionComposerSetRepositoryPathDiOpenArrowLineController,
@@ -2067,6 +2480,15 @@ Kekule.Editor.ActionComposerSetRepositoryGlyphController = Kekule.Editor.createC
 		Kekule.Editor.ActionComposerSetRepositoryPathOpenArrowArcController,
 		Kekule.Editor.ActionComposerSetRepositoryPathSingleSideOpenArrowArcController,
 		Kekule.Editor.ActionComposerSetRepositoryPathLineController,
+		*/
+		Kekule.Editor.ActionComposerSetRepositoryNormalReactionArrowController,
+		Kekule.Editor.ActionComposerSetRepositoryReversibleReactionArrowController,
+		Kekule.Editor.ActionComposerSetRepositoryResonanceReactionArrowController,
+		Kekule.Editor.ActionComposerSetRepositoryRetrosynthesisReactionArrowController,
+		Kekule.Editor.ActionComposerSetRepositoryLineSegmentController,
+		Kekule.Editor.ActionComposerSetRepositoryDoubleElectronPushingArrowController,
+		Kekule.Editor.ActionComposerSetRepositorySingleElectronPushingArrowController,
+		Kekule.Editor.ActionComposerSetRepositoryBondFormingElectronPushingArrowController,
 		Kekule.Editor.ActionComposerSetRepositoryHeatSymbolController,
 		Kekule.Editor.ActionComposerSetRepositoryAddSymbolController
 	],
@@ -2084,7 +2506,8 @@ Kekule._registerAfterLoadSysProc(function(){
 
 	reg(BNS.newDoc, CE.ActionEditorNewDoc, widgetClass);
 	reg(BNS.loadFile, CW.ActionDisplayerLoadFile, widgetClass);
-	reg(BNS.loadData, CW.ActionDisplayerLoadData, widgetClass);
+	//reg(BNS.loadData, CW.ActionDisplayerLoadData, widgetClass);
+	reg(BNS.loadData, CE.ActionEditorLoadData, widgetClass);
 	reg(BNS.saveData, CW.ActionDisplayerSaveFile, widgetClass);
 	reg(BNS.zoomIn, CW.ActionDisplayerZoomIn, widgetClass);
 	reg(BNS.zoomOut, CW.ActionDisplayerZoomOut, widgetClass);

@@ -33,7 +33,8 @@ Kekule.Widget.HtmlClassNames = Object.extend(Kekule.Widget.HtmlClassNames, {
 	TEXTAREA: 'K-TextArea',
 	SELECTBOX: 'K-SelectBox',
 	COMBOBOX: 'K-ComboBox',
-	COMBOBOX_TEXTWRAPPER: 'K-ComboBox-TextWrapper'
+	COMBOBOX_TEXTWRAPPER: 'K-ComboBox-TextWrapper',
+	NUMINPUT: 'K-NumInput'
 });
 
 /**
@@ -52,8 +53,16 @@ Kekule.Widget.HtmlClassNames = Object.extend(Kekule.Widget.HtmlClassNames, {
  * This event will actually be fired when "change" event occurs on form element.
  * Instead of simply "change", the event name is "valueChange" to avoid conflict with
  * change event of ObjectEx.
- *   event param of it has field: {widget}
+ *   event param of it has field: {widget, value}
  * @name Kekule.Widget.FormWidget#valueChange
+ * @event
+ */
+/**
+ * Invoked when the value of form control element is input by user.
+ * This event will actually be fired when "input" event occurs on form element.
+ * Instead of simply "input", the event name is "valueInput" to match the "valueChange" event.
+ *   event param of it has field: {widget, value}
+ * @name Kekule.Widget.FormWidget#valueInput
  * @event
  */
 Kekule.Widget.FormWidget = Class.create(Kekule.Widget.BaseWidget,
@@ -135,7 +144,7 @@ Kekule.Widget.FormWidget = Class.create(Kekule.Widget.BaseWidget,
 	{
 		//console.log('value change', this.getClassName());
 		this.setIsDirty(true);
-		this.invokeEvent('valueChange', {'widget': this});
+		this.invokeEvent('valueChange', {'widget': this, 'value':this.getValue()});
 	},
 	/**
 	 * Select all content in widget.
@@ -156,6 +165,7 @@ Kekule.Widget.FormWidget = Class.create(Kekule.Widget.BaseWidget,
 	reactInput: function(e)
 	{
 		this.setIsDirty(true);
+		this.invokeEvent('valueInput', {'widget': this, 'value':this.getValue()});
 	}
 });
 
@@ -338,7 +348,6 @@ Kekule.Widget.TextBox = Class.create(Kekule.Widget.FormWidget,
 	doCreateRootElement: function(doc)
 	{
 		var result = doc.createElement('input');
-		result.setAttribute('type', 'text');
 		return result;
 	},
 
@@ -346,6 +355,7 @@ Kekule.Widget.TextBox = Class.create(Kekule.Widget.FormWidget,
 	doBindElement: function($super, element)
 	{
 		$super(element);
+		element.setAttribute('type', 'text');
 	}
 });
 
@@ -528,6 +538,12 @@ Kekule.Widget.ComboTextBox = Class.create(Kekule.Widget.FormWidget,
 
 		result.push(textBox.getElement());
 		return result;
+	},
+
+	/** @ignore */
+	elementBound: function(element)
+	{
+		this.setObserveElemResize(true);
 	},
 
 	/** @ignore */
@@ -768,7 +784,7 @@ Kekule.Widget.ButtonTextBox = Class.create(Kekule.Widget.ComboTextBox,
  * @property {String} placeholder Placeholder text of text box.
  * //@property {Int} rows Rows in textarea.
  * //@property {Int} cols Cols in textarea.
- * @property {String} wrap Wrap mode of textarea, value between "physical", "virtual" and "off".
+ * @property {String} wrap Wrap mode of textarea, value between "hard", "soft" and "off".
  * @property {Bool} autoSizeX
  * @property {Bool} autoSizeY
  */
@@ -1516,6 +1532,104 @@ Kekule.Widget.ComboBox = Class.create(Kekule.Widget.FormWidget,
 			}
 		}
 		$super(text);  // set value of core element(text box)
+	}
+});
+
+/**
+ * An widget to input number, based on input element.
+ * Can be in to forms: slider (type=range) or number inputter (type=number).
+ * @class
+ * @augments Kekule.Widget.FormWidget
+ *
+ * @property {Number} minValue
+ * @property {Number} maxValue
+ * @property {Number} step
+ * @property {String} controlType Type of input element, should be either 'range' or 'number'.
+ */
+Kekule.Widget.NumInput = Class.create(Kekule.Widget.FormWidget,
+/** @lends Kekule.Widget.NumInput# */
+{
+	/** @private */
+	CLASS_NAME: 'Kekule.Widget.NumInput',
+	/** @private */
+	BINDABLE_TAG_NAMES: ['input'],
+	/** @private */
+	DEF_MIN_VALUE: 0,
+	/** @private */
+	DEF_MAX_VALUE: 100,
+	/** @private */
+	DEF_STEP: 1,
+	/** @constructs */
+	initialize: function($super, parentOrElementOrDocument, minValue, maxValue, step, controlType)
+	{
+		$super(parentOrElementOrDocument);
+		if (OU.notUnset(minValue))
+			this.setMinValue(minValue);
+		if (OU.notUnset(maxValue))
+			this.setMaxValue(maxValue);
+		if (OU.notUnset(step))
+			this.setStep(step);
+		if (controlType)
+			this.setControlType(controlType);
+	},
+	/** @private */
+	initProperties: function()
+	{
+		this.defineProp('minValue', {'dataType': DataType.NUMBER,
+			'getter': function() { return parseFloat(this.getElement().min) || null; },
+			'setter': function(value)
+			{
+				this.getElement().min = value;
+			}
+		});
+		this.defineProp('maxValue', {'dataType': DataType.NUMBER,
+			'getter': function() { return parseFloat(this.getElement().max) || null; },
+			'setter': function(value)
+			{
+				this.getElement().max = value;
+			}
+		});
+		this.defineProp('step', {'dataType': DataType.NUMBER,
+			'getter': function() { return parseFloat(this.getElement().step) || null; },
+			'setter': function(value)
+			{
+				this.getElement().step = value;
+			}
+		});
+		this.defineProp('controlType', {'dataType': DataType.STRING,
+			'getter': function() { return this.getElement().getAttribute('type'); },
+			'setter': function(value)
+			{
+				this.getElement().setAttribute('type', value);
+			}
+		});
+	},
+	/** @ignore */
+	doGetValue: function($super)  // convert the type of value to number
+	{
+		var v = $super();
+		if (v)
+			return parseFloat(v);
+		else
+			return 0;
+	},
+	/** @ignore */
+	doGetWidgetClassName: function($super)
+	{
+		return $super() + ' ' + CNS.NUMINPUT;
+	},
+	/** @ignore */
+	doCreateRootElement: function(doc)
+	{
+		var result = doc.createElement('input');
+		return result;
+	},
+
+	/** @ignore */
+	doBindElement: function($super, element)
+	{
+		$super(element);
+		element.setAttribute('type', 'range');
 	}
 });
 

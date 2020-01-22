@@ -136,7 +136,7 @@ Kekule.Render.MoleculeDisplayConfigs = Class.create(Kekule.AbstractConfigs,
 	{
 		this.addIntConfigProp('defMoleculeDisplayType', Kekule.Render.MoleculeDisplayType.SKELETAL, {'enumSource': Kekule.Render.MoleculeDisplayType});
 		this.addIntConfigProp('defNodeDisplayMode', Kekule.Render.NodeLabelDisplayMode.SMART, {'enumSource': Kekule.Render.NodeLabelDisplayMode});
-		this.addIntConfigProp('defHydrogenDisplayLevel', Kekule.Render.HydrogenDisplayLevel.EXPLICIT, {'enumSource': Kekule.Render.HydrogenDisplayLevel});
+		this.addIntConfigProp('defHydrogenDisplayLevel', Kekule.Render.HydrogenDisplayLevel.DEFAULT, {'enumSource': Kekule.Render.HydrogenDisplayLevel});
 		this.addIntConfigProp('defChargeMarkType', Kekule.Render.ChargeMarkRenderType.DEFAULT, {'enumSource': Kekule.Render.ChargeMarkRenderType});
 		this.addBoolConfigProp('distinguishSingletAndTripletRadical', false);
 		this.addIntConfigProp('partialChargeDecimalsLength', 2);
@@ -369,6 +369,7 @@ Kekule.Render.LengthConfigs = Class.create(Kekule.AbstractConfigs,
 		this.addFloatConfigProp('bondWavyRadius', 5);
 		// length for glyphs
 		this.addFloatConfigProp('glyphStrokeWidth', 1);
+		this.addFloatConfigProp('glyphStickOffsetRelLength', 0.1);  // 1/10 of default bond length
 		// length for reaction
 		this.addFloatConfigProp('rxnMolMargin', 10, {'scope': PS.PUBLIC});
 

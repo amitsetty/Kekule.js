@@ -35,6 +35,8 @@ Kekule.Widget.HtmlClassNames = Object.extend(Kekule.Widget.HtmlClassNames, {
  * @augments Kekule.Widget.BaseWidget
  *
  * @property {String} text Caption text of tab page. It will be shown in tab button of tab view.
+ * @property {Bool} active Whether this page is the active on in tab view. User can also set this value to true to run into this page.
+ *   Note: set this property to false will do nothing.
  */
 Kekule.Widget.TabPage = Class.create(Kekule.Widget.BaseWidget,
 /** @lends Kekule.Widget.TabPage# */
@@ -45,6 +47,23 @@ Kekule.Widget.TabPage = Class.create(Kekule.Widget.BaseWidget,
 	initProperties: function()
 	{
 		this.defineProp('text', {'dataType': DataType.STRING});
+		this.defineProp('active', {'dataType': DataType.STRING,
+			'getter': function()
+			{
+				var v = this.getTabView();
+				return v? (v.getActiveTabPage() === this): this.getPropStoreFieldValue('active');
+			},
+			'setter': function(value)
+			{
+				this.setPropStoreFieldValue('active', value);
+				var v = this.getTabView();
+				if (v)
+				{
+					if (!!value)
+						v.setActiveTabPage(this);
+				}
+			}
+		});
 	},
 	/** @ignore */
 	doGetWidgetClassName: function($super)
@@ -56,6 +75,16 @@ Kekule.Widget.TabPage = Class.create(Kekule.Widget.BaseWidget,
 	{
 		var result = doc.createElement('div');
 		return result;
+	},
+
+	/**
+	 * Returns the parent tab view widget.
+	 * @return {Kekule.Widget.TabView}
+	 */
+	getTabView: function()
+	{
+		var p = this.getParent();
+		return (p instanceof Kekule.Widget.TabView)? p: null;
 	}
 });
 
@@ -103,6 +132,26 @@ Kekule.Widget.TabButtonGroup = Class.create(Kekule.Widget.ButtonGroup,
 				}
 			}
 		});
+		this.defineProp('activeTabIndex', {'dataType': DataType.INT,
+			'getter': function()
+			{
+				var buttons = this.getTabButtons();
+				for (var i = 0, l = buttons.length; i < l; ++i)
+				{
+					if (buttons[i].getChecked())
+						return i;
+				}
+				return -1;
+			},
+			'setter': function(value)
+			{
+				var buttons = this.getTabButtons();
+				for (var i = 0, l = buttons.length; i < l; ++i)
+				{
+					buttons[i].setChecked(i === value);
+				}
+			}
+		});
 	},
 	/** @private */
 	initPropValues: function($super)
@@ -114,6 +163,23 @@ Kekule.Widget.TabButtonGroup = Class.create(Kekule.Widget.ButtonGroup,
 	doGetWidgetClassName: function($super)
 	{
 		return $super() + ' ' + CNS.TABBUTTONGROUP;
+	},
+
+	/**
+	 * Returns the array of child tab buttons.
+	 * @returns {Array}
+	 */
+	getTabButtons: function()
+	{
+		var result = [];
+		var children = this.getChildWidgets();
+		for (var i = 0, l = children.length; i < l; ++i)
+		{
+			var child = children[i];
+			if (child instanceof Kekule.Widget.RadioButton)
+				result.push(child);
+		}
+		return result;
 	},
 
 	/** @private */
@@ -349,7 +415,7 @@ Kekule.Widget.TabView = Class.create(Kekule.Widget.Container,
 			widget.appendToElem(this._pageContainer);
 			this.getTabPages().push(widget);
 			this._insertTabButtonBefore(widget);
-			if (isFirstPage)
+			if (isFirstPage || widget.getActive())
 				this.setActiveTabPage(widget);
 		}
 	},

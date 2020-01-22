@@ -87,10 +87,13 @@ Kekule.ClassUtils.makeSingleton(Kekule.Editor.ChemSpaceEditorConfigs);
  *
  * @property {Float} editorInitialZoom Initial zoom level of chem editor.
  * @property {Bool} scrollToObjAfterLoading Whether automatically scroll to the newly loaded chem object in editor.
+ * @property {Bool} autoExpandClientSizeAfterLoading Whether automatically enlarge the editor size to display all chem objects after loading.
+ * @property {Bool} autoExpandClientSizeAfterManipulation Whether automatically enlarge the editor size to display all chem objects after manipulating.
  * @property {Bool} enableTrackOnNearest If true, hot track or selection will focus on object nearest to coord,
  *   otherwise, focus on topmost object around coord.
  * @property {Bool} enableHotTrack Whether highlighting objects under mouse when mouse moves over editor.
- * @property {Bool} autoSelectNewlyInsertedObjects Whether select objects newly inserted into editor by IA controllers autimatically.
+ * @property {Bool} autoSelectNewlyInsertedObjects Whether select objects newly inserted by mouse or pen into editor by IA controllers automatically.
+ * @property {Bool} autoSelectNewlyInsertedObjectsOnTouch Whether select objects newly inserted by touch into editor by IA controllers automatically.
  * @property {Int} objBoundTrackMinInflation The bound of object will usually be inflated to make it easier to select. This value controls the minimal inflating degree.
  * @property {Int} selectionMarkerInflation Inflation of selection marker, makes it easier to see the containing objects.
  * @property {Int} selectionMarkerEdgeInflation Inflation when judging if a coord is on selection marker edge.
@@ -105,6 +108,7 @@ Kekule.ClassUtils.makeSingleton(Kekule.Editor.ChemSpaceEditorConfigs);
  * @property {Bool} enablePartialAreaSelecting If this value is true, when drag a selecting rubber band, object partial in the band will also be selected.
  * @property {Bool} enableMergePreview When set to true, a preview of merge (instead of actual merge) will be displayed during manipulation of chem objects.
  *   Set this value to true will improve the performance of chem editor.
+ * @property {Bool} followPointerCoordOnDirectManipulatingSingleObj If true, the new coord of manipulating object will be set directly by the position of pointer (rather than the delta coord to the original position).
  * @property {Bool} enableOffSelectionManipulation If true, holding pointer down outside selection region for a while
  *   will enter the manipulation state to move the selected objects.
  * @property {Int} OffSelectionManipulationActivatingTimeThreshold Holding pointer down longer then this time (in ms) may
@@ -137,7 +141,10 @@ Kekule.Editor.InteractionConfigs = Class.create(Kekule.AbstractConfigs,
 		this.addBoolConfigProp('enableHotTrack', true);
 
 		this.addBoolConfigProp('scrollToObjAfterLoading', true);
-		this.addBoolConfigProp('autoSelectNewlyInsertedObjects', true);
+		this.addBoolConfigProp('autoExpandClientSizeAfterLoading', true);
+		this.addBoolConfigProp('autoExpandClientSizeAfterManipulation', false);
+		this.addBoolConfigProp('autoSelectNewlyInsertedObjects', !true);
+		this.addBoolConfigProp('autoSelectNewlyInsertedObjectsOnTouch', true);
 
 		this.addIntConfigProp('objBoundTrackMinInflation', 5);
 		this.addIntConfigProp('objBoundTrackMinInflationMouse', null);
@@ -161,10 +168,12 @@ Kekule.Editor.InteractionConfigs = Class.create(Kekule.AbstractConfigs,
 		this.addIntConfigProp('selectionMarkerDefPulseDuration', 500);
 		this.addIntConfigProp('selectionMarkerDefPulseCount', 2);
 
+		this.addBoolConfigProp('followPointerCoordOnDirectManipulatingSingleObj', true);
+		this.addIntConfigProp('followPointerCoordOnDirectManipulatingSingleObjDistanceThreshold', 2);
 		//this.addConfigProp('constrainedResizeLevels', DataType.ARRAY, undefined);
-		this.addFloatConfigProp('constrainedResizeStep', 0.25);
+		this.addFloatConfigProp('constrainedResizeStep', 0.125/*0.25*/);
 		this.addIntConfigProp('rotationRegionInflation', 10);
-		this.addFloatConfigProp('constrainedRotateStep', degreeStep * 15);  // 15 degree
+		this.addFloatConfigProp('constrainedRotateStep', degreeStep * 7.5);  // 7.5 degree
 		this.addIntConfigProp('rotationLocationPointDistanceThreshold', 10);
 		this.addIntConfigProp('directedMoveDistanceThreshold', 10);
 		this.addBoolConfigProp('enableMergePreview', true);
@@ -448,6 +457,8 @@ Kekule.Editor.StructureConfigs = Class.create(Kekule.AbstractConfigs,
  *
  * @property {Hash} defScreenSize2D Default 2D screen size of space, based on px.
  * @property {Hash} defScreenSize3D Default 3D size of space.
+ * @property {Hash} autoExpandScreenSize2D The 2D delta used when auto expanding the space size.
+ * @property {Hash} autoExpandScreenSize3D The 3D delta used when auto expanding the space size.
  * @property {Num} defPadding Padding on top when adding an unpositioned object to container chem space.
  */
 Kekule.Editor.ChemSpaceConfigs = Class.create(Kekule.AbstractConfigs,
@@ -460,6 +471,8 @@ Kekule.Editor.ChemSpaceConfigs = Class.create(Kekule.AbstractConfigs,
 	{
 		this.addHashConfigProp('defScreenSize2D');
 		this.addHashConfigProp('defScreenSize3D');
+		this.addHashConfigProp('autoExpandScreenSize2D');
+		this.addHashConfigProp('autoExpandScreenSize3D');
 		this.addNumConfigProp('defPadding', 50);
 	},
 	/** @private */
@@ -468,6 +481,8 @@ Kekule.Editor.ChemSpaceConfigs = Class.create(Kekule.AbstractConfigs,
 		$super();
 		this.setDefScreenSize2D({'x': 900, 'y': 1500});
 		this.setDefScreenSize3D({'x': 600, 'y': 600, 'z': 600});
+		this.setAutoExpandScreenSize2D({'x': 200, 'y': 200});
+		this.setAutoExpandScreenSize3D({'x': 100, 'y': 100, 'z': 100});
 	}
 });
 

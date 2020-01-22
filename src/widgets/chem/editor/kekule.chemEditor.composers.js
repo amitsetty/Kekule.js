@@ -50,6 +50,7 @@ Kekule.ChemWidget.HtmlClassNames = Object.extend(Kekule.ChemWidget.HtmlClassName
 	COMPOSER_OBJMODIFIER_TOOLBAR: 'K-Chem-Composer-ObjModifier-Toolbar',
 	COMPOSER_FONTNAME_BOX: 'K-Chem-Composer-FontName-Box',
 	COMPOSER_FONTSIZE_BOX: 'K-Chem-Composer-FontSize-Box',
+	COMPOSER_NODEDISPLAYMODE_BOX: 'K-Chem-Composer-NodeDisplayMode-Box',
 	COMPOSER_COLOR_BOX: 'K-Chem-Composer-Color-Box',
 
 	COMPOSER_TEXTDIRECTION_BUTTON: 'K-Chem-Composer-TextDirection-Button',
@@ -1039,6 +1040,7 @@ Kekule.Editor.ComposerObjModifierToolbar = Class.create(Kekule.Widget.Toolbar,
  * @property {Bool} enableCreateNewDoc Whether create new object in editor is allowed.
  * @property {Bool} allowCreateNewChild Whether new direct child of space can be created.
  *   Note: if the space is empty, one new child will always be allowed to create.
+ * @property {Bool} allowAppendDataToCurr Whether display "append data" check box in the data load dialog.
  */
 Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 /** @lends Kekule.Editor.Composer# */
@@ -1187,6 +1189,8 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 			'setter': function(value)
 			{
 				this.setPropStoreFieldValue('enableStyleToolbar', value);
+				if (value)  // enable style bar should disable modifier bar
+					this.setPropStoreFieldValue('enableObjModifierToolbar', false);
 				this.updateSelectionAssocToolbarState();
 			}
 		});
@@ -1211,6 +1215,8 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 			'setter': function(value)
 			{
 				this.setPropStoreFieldValue('enableObjModifierToolbar', value);
+				if (value)  // enable modifier bar should disable style bar
+					this.setPropStoreFieldValue('enableStyleToolbar', false);
 				this.updateSelectionAssocToolbarState();
 			}
 		});
@@ -1356,6 +1362,20 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 				return this;
 			}
 		});
+		this.defineProp('allowAppendDataToCurr', {'dataType': DataType.BOOL,
+			'getter': function()
+			{
+				var ed = this.getEditor();
+				return (ed && ed.getAllowAppendDataToCurr)? ed.getAllowAppendDataToCurr(): null;
+			},
+			'setter': function(value)
+			{
+				var ed = this.getEditor();
+				if (ed.setAllowAppendDataToCurr)
+					ed.setAllowAppendDataToCurr(value);
+				return this;
+			}
+		});
 
 
 		// editor delegated property
@@ -1446,12 +1466,6 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 	},
 
 	/** @ignore */
-	initPropValues: function($super)
-	{
-		$super();
-	},
-
-	/** @ignore */
 	doCreateRootElement: function(doc)
 	{
 		var result = doc.createElement('div');
@@ -1490,6 +1504,13 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 		var result = $super() + ' ' + CCNS.COMPOSER;
 		return result;
 	},
+
+	/** @ignore */
+	elementBound: function(element)
+	{
+		this.setObserveElemResize(true);
+	},
+
 	/** @ignore */
 	doWidgetShowStateChanged: function($super, isShown)
 	{
@@ -2313,7 +2334,7 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 	 * @returns {Kekule.Widget.ButtonGroup}
 	 * @private
 	 */
-	createInnerToolbar: function(parentElem)
+	createInnerToolbar: function(parentElem, asFirstChildren)
 	{
 		var toolBar = new Kekule.Widget.ButtonGroup(this);
 		toolBar.addClassName(CCNS.COMPOSER_TOOLBAR);
@@ -2321,7 +2342,17 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 		toolBar.addClassName(CNS.DYN_CREATED);
 		toolBar.setShowText(false);
 		toolBar.doSetShowGlyph(true);
-		toolBar.appendToElem(parentElem || this.getElement());
+		var pElem = parentElem || this.getElement();
+		if (asFirstChildren)
+		{
+			var refElem = Kekule.DomUtils.getFirstChildElem(pElem);
+			if (refElem)
+				toolBar.insertToElem(pElem, refElem);
+			else
+				toolBar.appendToElem(pElem);
+		}
+		else
+			toolBar.appendToElem(pElem);
 		return toolBar;
 	},
 	/**
@@ -2416,7 +2447,7 @@ Kekule.Editor.Composer = Class.create(Kekule.ChemWidget.AbstractWidget,
 	createChemToolbar: function()
 	{
 		var parentElem = this.getLeftRegionElem();
-		var toolbar = this.createInnerToolbar(parentElem);
+		var toolbar = this.createInnerToolbar(parentElem, true);  // chem toolbar should be the first child on the left region
 		toolbar.addClassName(CCNS.COMPOSER_CHEM_TOOLBAR);
 		toolbar.setLayout(Kekule.Widget.Layout.VERTICAL);
 		// add buttons
@@ -2871,7 +2902,10 @@ Kekule.Editor.Composer.Settings = Class.create(Kekule.Widget.BaseWidget.Settings
 	initProperties: function()
 	{
 		//this.defineProp('composer', {'dataType': 'Kekule.Editor.Composer', 'serializable': false, 'scope': PS.PUBLIC});
-		this.defineDelegatedProps(['enableCreateNewDoc', 'enableLoadNewFile', 'initOnNewDoc', 'enableOperHistory', 'allowCreateNewChild', 'enableStyleToolbar']);
+		this.defineDelegatedProps([
+			'enableCreateNewDoc', 'enableLoadNewFile', 'initOnNewDoc', 'enableOperHistory', 'allowCreateNewChild', 'allowAppendDataToCurr',
+			'enableStyleToolbar', 'enableObjModifierToolbar'
+		]);
 	}
 });
 
@@ -2948,7 +2982,7 @@ Kekule._registerAfterLoadSysProc(function(){
 	var EMC = Kekule.Editor.ObjModifier.Category;
 	var SM = Kekule.ObjPropSettingManager;
 	SM.register('Kekule.Editor.Composer.fullFunc', {  // composer with all functions
-		enableStyleToolbar: true,
+		enableObjModifierToolbar: true,
 		enableOperHistory: true,
 		enableLoadNewFile: true,
 		enableCreateNewDoc: true,
@@ -2959,7 +2993,7 @@ Kekule._registerAfterLoadSysProc(function(){
 		allowedObjModifierCategories: null  // allow modifiers of all categories
 	});
 	SM.register('Kekule.Editor.Composer.molOnly', {  // composer that can only edit molecule
-		enableStyleToolbar: true,
+		enableObjModifierToolbar: true,
 		enableOperHistor: true,
 		enableLoadNewFile: true,
 		enableCreateNewDoc: true,
@@ -2978,7 +3012,7 @@ Kekule._registerAfterLoadSysProc(function(){
 		allowedObjModifierCategories: [EMC.GENERAL, EMC.CHEM_STRUCTURE]  // only all chem structure modifiers
 	});
 	SM.register('Kekule.Editor.Composer.compact', {  // composer with less tool buttons
-		enableStyleToolbar: false,
+		enableObjModifierToolbar: true,
 		commonToolButtons: [
 			BNS.newDoc,
 			BNS.loadData,

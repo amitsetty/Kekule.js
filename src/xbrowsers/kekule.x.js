@@ -11,15 +11,24 @@
  * require /utils/kekule.domUtils.js
  */
 
-(function (window, document)
+(function ($root)
 {
 
 "use strict";
 
-var $root = window;
+//var $root = window;
+var	window = $root, document = window && window.document;
 
-if (!$root.Kekule)
+if (typeof(Kekule) === 'undefined')
 	Kekule = {};
+
+if (typeof(navigator) === "undefined")   // not in browser environment, node.js?
+{
+	Kekule.Browser = {};
+	Kekule.BrowserFeature = {};
+}
+else
+{     // start of browser detect part
 
 /**
  * Browser Check.
@@ -102,6 +111,7 @@ Kekule.BrowserFeature = {
 			}
 	},
 	mutationObserver: window.MutationObserver || window.MozMutationObserver || window.WebkitMutationObserver,
+	resizeObserver: !!window.ResizeObserver,
 	touchEvent: !!window.touchEvent,
 	pointerEvent: !!window.PointerEvent,
 	draggable: (function() {
@@ -109,6 +119,9 @@ Kekule.BrowserFeature = {
 		return ('draggable' in div) || ('ondragstart' in div && 'ondrop' in div);
 	})()
 };
+
+}   // end of browser detect part
+
 
 // polyfill of requestAnimationFrame / cancelAnimationFrame
 (function() {
@@ -1113,24 +1126,27 @@ X.Event._IEMethods = {
 	}
 };
 
-if (document.addEventListener)  // W3C browser
+if (document)
 {
-	X.Event = Object.extend(X.Event, X.Event._W3C);
-	X.Event.Methods = Object.extend(X.Event.Methods, X.Event._W3CMethods);
-	if (Kekule.Browser.Gecko)  // fix Firefox mousewheel event lacking
+	if (document.addEventListener)  // W3C browser
 	{
-		X.Event = Object.extend(X.Event, X.Event._Gecko);
+		X.Event = Object.extend(X.Event, X.Event._W3C);
+		X.Event.Methods = Object.extend(X.Event.Methods, X.Event._W3CMethods);
+		if (Kekule.Browser.Gecko)  // fix Firefox mousewheel event lacking
+		{
+			X.Event = Object.extend(X.Event, X.Event._Gecko);
+		}
 	}
-}
-else if (document.attachEvent)  // IE 8
-{
-	X.Event = Object.extend(X.Event, X.Event._IE);
-	X.Event.Methods = Object.extend(X.Event.Methods, X.Event._IEMethods);
-	if (window.Element)
+	else if (document.attachEvent)  // IE 8
 	{
-		var elemPrototype = window.Element.prototype;
-		elemPrototype.addEventListener = X.Event.addListener.methodize();
-		elemPrototype.removeEventListener = X.Event.removeListener.methodize();
+		X.Event = Object.extend(X.Event, X.Event._IE);
+		X.Event.Methods = Object.extend(X.Event.Methods, X.Event._IEMethods);
+		if (window.Element)
+		{
+			var elemPrototype = window.Element.prototype;
+			elemPrototype.addEventListener = X.Event.addListener.methodize();
+			elemPrototype.removeEventListener = X.Event.removeListener.methodize();
+		}
 	}
 }
 
@@ -1141,7 +1157,7 @@ if (window.Event)
 	eproto = window.Event.prototype;
 if (!eproto)
 {
-	if (document.createEvent)
+	if (document && document.createEvent)
 		eproto = document.createEvent('HTMLEvents').__proto__;
 }
 var hasEventPrototype = !!eproto;
@@ -1264,13 +1280,34 @@ X.Ajax = {
 
 	/**
 	 * Send an AJAX request to URL.
+	 * @param {Hash} params The request params, may including the following fields:
+	 *   {
+	 *     callback: Call back function with params (data, requestObj, success),
+	 *     url: string,
+	 *     postData: Hash or string,
+	 *     xhrProps: Hash, properties that overriding the default ones of XMLHttpRequest object.
+	 *       e.g. {responseType, overwriteMimeType, withCredentials}.
+	 *   }
+	 * @returns {XMLHttpRequest}
+	 */
+	request: function(params)
+	{
+		return X.Ajax.sendRequest(params.url, params.callback, params.postData, params.xhrProps);
+	},
+
+	/**
+	 * Send an AJAX request to URL.
+	 * This method is deprecated, since the input  paramters are not well organized.
+	 * Now user should use method {@link Kekule.X.Ajax.request} instead.
 	 * @param {String} url
 	 * @param {Function} callback Call back function with params (data, requestObj, success)
 	 * @param {Array} postData Optional.
-	 * @param {String} responseType Value of responseType property of XMLHttpRequest(V2).
-	 * @param {String} overwriteMimeType Value to call overwriteMimeType method of XMLHttpRequest(V2).
+	 * //@param {String} responseType Value of responseType property of XMLHttpRequest(V2).
+	 * //@param {String} overwriteMimeType Value to call overwriteMimeType method of XMLHttpRequest(V2).
+	 * @param {Hash} xhrProps Property settings of XHR object, e.g. {withCredentials: true}.
+	 * @deprecated
 	 */
-	sendRequest: function(url, callback, postData, responseType, overwriteMimeType)
+	sendRequest: function(url, callback, postData, responseTypeOrXhrProps, overwriteMimeType)
 	{
 		var isBinary = false;
 		var supportResponseType = true;
@@ -1281,6 +1318,18 @@ X.Ajax = {
 		req.setRequestHeader('User-Agent','XMLHTTP/1.0');
 		if (postData)
 			req.setRequestHeader('Content-type','application/x-www-form-urlencoded');
+		var responseType, xhrProps;
+		if (responseTypeOrXhrProps)  // for backward compatible, here we check if the fourth param is a hash(xhrProps) or string (responseType)
+		{
+			if (typeof(responseTypeOrXhrProps) === 'object')
+			{
+				xhrProps = responseTypeOrXhrProps;
+				responseType = xhrProps.responseType;
+				overwriteMimeType = xhrProps.overwriteMimeType;  // overwriteMimeType is also set in xhrProps
+			}
+			else if (typeof(responseTypeOrXhrProps) === 'string')
+				responseType = responseTypeOrXhrProps;
+		}
 		if (responseType)
 		{
 			try
@@ -1296,10 +1345,27 @@ X.Ajax = {
 			if (req.responseType !== responseType)  // old fashion browser, do not support this feature
 				supportResponseType = false;
 		}
-		if (isBinary && (!supportResponseType) & req.overwriteMimeType)
+		if (isBinary && (!supportResponseType) && req.overwriteMimeType)
 			req.overrideMimeType('text/plain; charset=x-user-defined');  // old browser, need to transform binary data by string
 		if (overwriteMimeType && req.overwriteMimeType)
 			req.overwriteMimeType(overwriteMimeType);
+		if (xhrProps)
+		{
+			for (var key in xhrProps)
+			{
+				if (key in req)
+				{
+					try
+					{
+						req[key] = xhrProps[key];
+					}
+					catch(e)
+					{
+
+					}
+				}
+			}
+		}
 		req.onreadystatechange = function ()
 			{
 				if (req.readyState != 4) return;
@@ -1413,7 +1479,7 @@ Kekule.X.DomReady = {
 	},
   initReady: function initReady()
   {
-    if (document.addEventListener) {
+    if (document && document.addEventListener) {
       document.addEventListener( "DOMContentLoaded", function(){
 	      document.removeEventListener( "DOMContentLoaded", initReady /*arguments.callee*/, false );//清除加载函数
         DOM.fireReady();
@@ -1421,7 +1487,7 @@ Kekule.X.DomReady = {
     }
     else
     {
-      if (document.getElementById) {
+      if (document && document.getElementById) {
         document.write('<script id="ie-domReady" defer="defer" src="\//:"><\/script>');
         document.getElementById("ie-domReady").onreadystatechange = function() {
           if (this.readyState === "complete") {
@@ -1436,7 +1502,7 @@ Kekule.X.DomReady = {
 };
 
 /** @ignore */
-var DOM = Kekule.X.DomReady
+var DOM = Kekule.X.DomReady;
 /**
  * Invoke when page DOM is loaded.
  * @param {Func} fn Callback function.
@@ -1444,4 +1510,4 @@ var DOM = Kekule.X.DomReady
  */
 Kekule.X.domReady = DOM.domReady;
 
-})(window, document);
+})(this);
