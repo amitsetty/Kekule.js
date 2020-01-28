@@ -1142,14 +1142,14 @@ Kekule.ChemStructOperation.RemoveNode = Class.create(Kekule.ChemObjOperation.Rem
 				if (parentNode)
 					parentNode.removeMarker(this.getTarget());
 		}
-		else
+		/*else
 		{
 			if (!this.getLinkedConnectors())
 			{
 				this.setLinkedConnectors(Kekule.ArrayUtils.clone(this.getTarget().getLinkedConnectors()));
 			}
 			$super();
-		}
+		}*/
 		
 		if (!this.getLinkedConnectorInfos())
 		{

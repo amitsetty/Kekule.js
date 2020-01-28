@@ -5,7 +5,7 @@
  * @author Partridge Jiang
  */
 
-(function(){
+module.exports = function (Kekule) {
 
 /**
  * Util methods about CSS and style values.
@@ -978,4 +978,5 @@ Kekule.DocumentUtils = {
 	}
 };
 
-})();
+return Kekule;
+};
