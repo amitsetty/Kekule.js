@@ -2552,6 +2552,8 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 		var originManipulatedObjs = this.getManipulateOriginObjs();
 		var manipulatedObjs = this.getManipulateObjs();
 		
+		var eligibleObjs = [];
+		var eligibleDests = [];
 		var excludedObjs = [].concat(originManipulatedObjs);
 		Kekule.ArrayUtils.pushUnique(excludedObjs, manipulatedObjs);
 		
@@ -2973,9 +2975,7 @@ Kekule.Editor.BasicMolManipulationIaController = Class.create(Kekule.Editor.Basi
 		var currManipulateInfoMap = this.getManipulateObjCurrInfoMap();
 		var manipulateInfoMap = this.getManipulateObjInfoMap();
 		var self = this;
-		var eligibleObjIndexes = [];
-		var eligibleObjs = [];
-		var eligibleDests = [];
+		var eligibleObjIndexes = [];		
 		
 		if (isMovingOneArrowNode || isMovingOneArrowArc)
 		{

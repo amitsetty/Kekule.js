@@ -9,8 +9,7 @@
  * requires /chemdoc/kekule.commonChemMarkers.js
  */
 
-(function(){
-"use strict";
+module.exports = function (Kekule) {
 
 ////////////// A util class for electron donor/receptor arrows ///////////
 /** @ignore */
@@ -63,4 +62,5 @@ Kekule.Glyph.ElectronArrowGlyphUtils = {
 	},
 };
 
-})();
+return Kekule;
+};

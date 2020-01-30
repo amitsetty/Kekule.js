@@ -20,8 +20,6 @@ module.exports = function(Kekule){
 
 var AU = Kekule.ArrayUtils;
 
-var AU = Kekule.ArrayUtils;
-
 /**
  * A namespace for operation about normal ChemObject instance.
  * @namespace
@@ -1006,9 +1004,9 @@ Kekule.ChemObjOperation.Remove = Class.create(Kekule.ChemObjOperation.Base,
 			owner = obj.getOwner();
 			this.setOwnerObj(owner);
 		}
-		if (obj instanceof Kekule.Glyph.PathGlyphNode) {
+		/*if (obj instanceof Kekule.Glyph.PathGlyphNode) {
 			this.removeListenersOnCurveArrow(obj)
-		}
+		}*/
 		if (obj instanceof Kekule.Glyph.Arc) {
 			obj.nodes.forEach(n => this.removeListenersOnCurveArrow(n))
 		}

@@ -19,12 +19,6 @@ module.exports = function(Kekule){
 var CU = Kekule.CoordUtils;
 var CM = Kekule.CoordMode;
 
-var CU = Kekule.CoordUtils;
-var CM = Kekule.CoordMode;
-
-var CU = Kekule.CoordUtils;
-var CM = Kekule.CoordMode;
-
 /**
  * Represent an node in glyph path.
  * @class
