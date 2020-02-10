@@ -123,7 +123,7 @@ Kekule.Render.HydrogenDisplayLevel = {
 	/** Always display hydrogen on all labeled atoms. */
 	LABELED: 30,
 	/** Default is LABELED. */
-	DEFAULT: 30
+	DEFAULT: 1
 };
 
 

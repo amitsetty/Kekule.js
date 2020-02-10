@@ -2814,17 +2814,32 @@ Kekule.Render.ChemCtab2DRenderer = Class.create(Kekule.Render.Ctab2DRenderer,
 	 */
 	_getNodeHydrogenDisplayLevel: function(node, drawOptions)
 	{
+		const { hydrogenDisplayType: HDT } = this.getDrawBridge()
+		const { IMPLICIT, EXPLICIT, NONE } = Kekule.Render.HydrogenDisplayLevel
+		const { SKELETAL } = Kekule.Render.MoleculeDisplayType
+		if (node.getIsotopeId() === "C" && drawOptions.moleculeDisplayType === SKELETAL) {
+			return EXPLICIT
+		}
+		switch (HDT) {
+			case 'BONDED':
+				return NONE
+			case 'IMPLICIT':
+				return IMPLICIT
+			case 'EXPLICIT':
+			default:
+				return EXPLICIT
+		}
 		//if (this.getMoleculeDisplayType() === Kekule.Render.MoleculeDisplayType.CONDENSED)  // condensed, need display all hydrogens defaultly
-		var localRenderOptions = node.getOverriddenRenderOptions();
-		var localLevel = Kekule.Render.RenderOptionUtils.getHydrogenDisplayLevel(localRenderOptions);
-		var hdisplayLevel = Kekule.ObjUtils.notUnset(localLevel)?
-			localLevel:
-			/*((drawOptions.moleculeDisplayType === Kekule.Render.MoleculeDisplayType.CONDENSED)?
-					Kekule.Render.HydrogenDisplayLevel.ALL:*
-					drawOptions.hydrogenDisplayLevel);*/
-			drawOptions.hydrogenDisplayLevel;
-					//this.getRenderConfigs().getMoleculeDisplayConfigs().getDefHydrogenDisplayLevel());
-		return hdisplayLevel;
+		// var localRenderOptions = node.getOverriddenRenderOptions();
+		// var localLevel = Kekule.Render.RenderOptionUtils.getHydrogenDisplayLevel(localRenderOptions);
+		// var hdisplayLevel = Kekule.ObjUtils.notUnset(localLevel)?
+		// 	localLevel:
+		// 	/*((drawOptions.moleculeDisplayType === Kekule.Render.MoleculeDisplayType.CONDENSED)?
+		// 			Kekule.Render.HydrogenDisplayLevel.ALL:*
+		// 			drawOptions.hydrogenDisplayLevel);*/
+		// 	drawOptions.hydrogenDisplayLevel;
+		// 			//this.getRenderConfigs().getMoleculeDisplayConfigs().getDefHydrogenDisplayLevel());
+		// return hdisplayLevel;
 	},
 
 	/**
